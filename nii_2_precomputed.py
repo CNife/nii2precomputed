@@ -1,16 +1,13 @@
-import asyncio
 import copy
 import json
 import math
-import numbers
 from collections import namedtuple
 from pathlib import Path
 from typing import Any
 
 import numpy as np
-import tensorstore
+import tensorstore as ts
 from neuroglancer_scripts.dyadic_pyramid import fill_scales_for_dyadic_pyramid
-from tensorstore import TensorStore
 from tqdm import tqdm
 from zimg import ZImg, ZImgInfo, ZImgRegion, ZVoxelCoordinate
 
@@ -115,12 +112,13 @@ def build_full_resolution_info(
         ],
     }
     fill_scales_for_dyadic_pyramid(info)
+    print(f"info={json.dumps(info)}")
     return info
 
 
 def convert_a_scale(
-    full_resolution_info,
-    scale_index,
+    full_resolution_info: dict[str, Any],
+    scale_index: int,
     channel_names: list[str],
     target_data_type: type[np.number],
     out_folder: Path,
@@ -129,7 +127,7 @@ def convert_a_scale(
     image_info: ZImgInfo,
     image_path: Path,
 ) -> None:
-    scale = convert_scale_dict(full_resolution_info[scale_index])
+    scale = convert_scale_dict(full_resolution_info["scales"][scale_index])
     multiscale = {
         "data_type": full_resolution_info["data_type"],
         "num_channels": full_resolution_info["num_channels"],
@@ -159,13 +157,15 @@ def convert_a_scale(
             yRatio=y_ratio,
             zRatio=z_ratio,
         )
-        target_z_start = (a_range.start + z_ratio - 1) // z_ratio
-        target_z_end = (a_range.stop + z_ratio - 1) // z_ratio
-        for channel_data, store in zip(image.data[0], stores):
+        z_start = (a_range.start + z_ratio - 1) // z_ratio
+        z_end = (a_range.stop + z_ratio - 1) // z_ratio
+        for channel_index, channel_data in enumerate(image.data[0]):
             channel_data = convert_channel_data_type(channel_data, target_data_type)
-            store[tensorstore.d["channel"][0]][
-                tensorstore.d["z"][target_z_start:target_z_end]
-            ] = np.reshape(channel_data, channel_data.shape[::-1], order="F")
+            stores[channel_index][ts.d["channel"][channel_index]][
+                ts.d["z"][z_start:z_end]
+            ] = np.reshape(
+                channel_data.ravel(order="C"), channel_data.shape[::-1], order="F"
+            )
 
 
 def convert_scale_dict(scale: dict[str, Any]) -> dict[str, Any]:
@@ -181,45 +181,31 @@ def open_tensorstores(
     channel_names: list[str],
     out_folder: Path,
     multiscale: dict[str, Any],
-) -> list[TensorStore]:
-    async def do_open_tensorstores() -> list[TensorStore]:
-        tasks = [
-            open_tensorstore(scale, channel_name, out_folder, multiscale)
-            for channel_name in channel_names
-        ]
-        return await asyncio.gather(*tasks)
+) -> list[ts.TensorStore]:
+    def open_a_tensorstore(channel_name: str) -> ts.TensorStore:
+        spec = {
+            "driver": "neuroglancer_precomputed",
+            "kvstore": {
+                "driver": "file",
+                "path": str(out_folder),
+            },
+            "path": channel_name,
+            "scale_metadata": scale,
+            "multiscale_metadata": multiscale,
+        }
+        return ts.open(spec, create=True, delete_existing=True).result()
 
-    return asyncio.run(do_open_tensorstores())
-
-
-async def open_tensorstore(
-    scale: dict[str, Any],
-    channel_name: str,
-    out_folder: Path,
-    multiscale: dict[str, Any],
-) -> TensorStore:
-    spec = {
-        "driver": "neuroglancer_precomputed",
-        "kvstore": {
-            "driver": "file",
-            "path": str(out_folder),
-        },
-        "path": channel_name,
-        "scale_metadata": scale,
-        "multiscale_metadata": multiscale,
-    }
-    return await tensorstore.open(spec, open=True, create=True, delete_existing=True)
+    return [open_a_tensorstore(channel_name) for channel_name in channel_names]
 
 
 def convert_channel_data_type(
     channel_data: np.ndarray, target_data_type: type[np.number]
 ) -> np.ndarray:
-    channel_dtype = channel_data.dtype
+    if (channel_dtype := channel_data.dtype) == target_data_type:
+        return channel_data
     if target_data_type == np.float32:
-        assert channel_dtype == np.float64
         return channel_data.astype(np.float32)
     if target_data_type == np.uint8:
-        assert issubclass(channel_dtype, numbers.Integral)
         min_value = float(np.iinfo(channel_dtype).min)
         max_value = float(np.iinfo(channel_dtype).max)
         return (channel_data.astype(np.float64) - min_value) / (max_value - min_value)
@@ -268,6 +254,7 @@ def build_base_json_dict(
         channel_color = image_info.channelColors[i]
         channel_layer = {
             "type": "image",
+            "name": channel_name,
             "source": f"{url_path}/{channel_name}",
             "opacity": 1,
             "blend": "additive",
@@ -280,7 +267,3 @@ def build_base_json_dict(
         }
         base_dict["layers"].append(channel_layer)
     return base_dict
-
-
-def write_base_json(base_dict: dict[str, Any]) -> None:
-    pass
