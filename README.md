@@ -7,5 +7,5 @@
 ```shell
 conda create -n nii2precomputed python=3.10
 conda install -c fenglab zimg
-pip install neuroglancer_scripts
+pip install neuroglancer_scripts tensorstore
 ```
