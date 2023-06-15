@@ -54,12 +54,13 @@ def convert_nii_to_precomputed(
             image_path,
         )
 
-    # TODO 构造并写入base.json
     base_json_dict = build_base_json_dict(
         image_info, channel_names, image_scale, resolution, target_data_type, url_path
     )
     with open(out_folder / "base.json", "w") as base_json_file:
-        json.dump(base_json_dict, base_json_file)
+        base_json = json.dumps(base_json_dict)
+        print(f"base.json={base_json}")
+        base_json_file.write(base_json)
 
 
 def read_image_info(image_path: Path) -> ZImgInfo:
@@ -163,9 +164,7 @@ def convert_a_scale(
             channel_data = convert_channel_data_type(channel_data, target_data_type)
             stores[channel_index][ts.d["channel"][channel_index]][
                 ts.d["z"][z_start:z_end]
-            ] = np.reshape(
-                channel_data.ravel(order="C"), channel_data.shape[::-1], order="F"
-            )
+            ] = np.reshape(channel_data, channel_data.shape[::-1], order="F")
 
 
 def convert_scale_dict(scale: dict[str, Any]) -> dict[str, Any]:
@@ -192,8 +191,11 @@ def open_tensorstores(
             "path": channel_name,
             "scale_metadata": scale,
             "multiscale_metadata": multiscale,
+            "create": True,
+            "delete_existing": True,
         }
-        return ts.open(spec, create=True, delete_existing=True).result()
+        print(f"tensorstore spec = {json.dumps(spec)}")
+        return ts.open(spec).result()
 
     return [open_a_tensorstore(channel_name) for channel_name in channel_names]
 
@@ -231,18 +233,18 @@ def build_base_json_dict(
             image_info.height / 2.0 * image_scale,
             image_info.depth / 2.0,
         ],
-        "crossSectionScale": 59.90389939556908,
-        "projectionOrientation": [
-            -0.11555982381105423,
-            -0.09716008603572845,
-            0.4296676218509674,
-            0.8902761340141296,
-        ],
-        "projectionScale": 50764.49878262887,
-        "selectedLayer": {
-            "layer": "annotation",
-            "visible": True,
-        },
+        # "crossSectionScale": 59.90389939556908,
+        # "projectionOrientation": [
+        #     -0.11555982381105423,
+        #     -0.09716008603572845,
+        #     0.4296676218509674,
+        #     0.8902761340141296,
+        # ],
+        # "projectionScale": 50764.49878262887,
+        # "selectedLayer": {
+        #     "layer": "annotation",
+        #     "visible": True,
+        # },
         "layout": "4panel",
         "layers": [],
     }
