@@ -8,10 +8,10 @@ from typing import Any
 import numpy as np
 import tensorstore as ts
 from neuroglancer_scripts.dyadic_pyramid import fill_scales_for_dyadic_pyramid
-from tqdm import tqdm, trange
+from rich.progress import Progress
 from zimg import ZImg, ZImgInfo, ZImgRegion, ZVoxelCoordinate
 
-from util import pretty_print_object
+from util import console, pretty_print_object
 
 Resolution = namedtuple("Resolution", ["x", "y", "z"])
 ImageSize = namedtuple("ImageSize", ["x", "y", "z"])
@@ -65,7 +65,7 @@ def convert_nii_to_precomputed(
             channel_info_data = json.load(channel_info_file)
             pretty_print_object(
                 channel_info_data,
-                f"precomputed channel info {i}/{image_info.numChannels}",
+                f"precomputed channel info {i + 1}/{image_info.numChannels}",
             )
 
 
@@ -177,44 +177,52 @@ def convert_image(
         "num_channels": full_resolution_info["num_channels"],
         "type": full_resolution_info["type"],
     }
+    scales = full_resolution_info['scales']
 
-    for i, scale_info in enumerate(tqdm(full_resolution_info["scales"], desc="scales", leave=False)):
-        scale_metadata = convert_to_tensorstore_scale_metadata(scale_info)
-        output_stores = [
-            open_tensorstore(
-                f"channel_{i}", out_folder, scale_metadata, multiscale_metadata
-            )
-            for i in range(image_info.numChannels)
-        ]
-        pretty_print_object(output_stores, title=f"tensorstore config {i}/{len(full_resolution_info['scales'])}")
-        scale_resolution = Resolution(*scale_info["resolution"])
-        z_step_size = scale_metadata["chunk_size"][2] * 2
-        for z_step_index in trange(
-            (image_info.depth + z_step_size - 1) // z_step_size,
-            desc="steps",
-            leave=False,
-        ):
-            z_start, z_end = z_step_index * z_step_size, min(
-                image_info.depth, (z_step_index + 1) * z_step_size
-            )
-            z_ratio = round(scale_resolution.z / origin_resolution.z)
-            image_region = ZImg(
-                str(image_path),
-                region=ZImgRegion(
-                    ZVoxelCoordinate(0, 0, z_start, 0, 0),
-                    ZVoxelCoordinate(-1, -1, z_end, -1, 1),
-                ),
-                scene=0,
-                xRatio=round(scale_resolution.x / origin_resolution.x),
-                yRatio=round(scale_resolution.y / origin_resolution.y),
-                zRatio=z_ratio,
-            )
-            target_z_start = (z_start + z_ratio - 1) // z_ratio
-            target_z_end = (z_end + z_ratio - 1) // z_ratio
-            for channel_data, output_store in zip(image_region.data[0], output_stores):
-                output_store[
-                    ts.d["channel", "z"][0, target_z_start:target_z_end]
-                ] = np.reshape(channel_data, channel_data.shape[::-1], order="F")
+    with Progress(console=console) as progress:
+        scales_task = progress.add_task('scales', total=len(scales))
+        steps_task = progress.add_task('steps', total=1)
+        channels_task = progress.add_task('channels', total=image_info.numChannels)
+        for i, scale_info in enumerate(full_resolution_info["scales"]):
+            scale_metadata = convert_to_tensorstore_scale_metadata(scale_info)
+            output_stores = [
+                open_tensorstore(
+                    f"channel_{i}", out_folder, scale_metadata, multiscale_metadata
+                )
+                for i in range(image_info.numChannels)
+            ]
+            pretty_print_object(output_stores, title=f"tensorstore config {i}/{len(full_resolution_info['scales'])}")
+            scale_resolution = Resolution(*scale_info["resolution"])
+            z_step_size = scale_metadata["chunk_size"][2] * 2
+            z_steps = [
+                (i * z_step_size, min(image_info.depth, (i + 1) * z_step_size))
+                for i in range((image_info.depth + z_step_size - 1) // z_step_size)
+            ]
+            progress.update(steps_task, total=len(z_steps))
+            for z_start, z_end in z_steps:
+                z_ratio = round(scale_resolution.z / origin_resolution.z)
+                image_region = ZImg(
+                    str(image_path),
+                    region=ZImgRegion(
+                        ZVoxelCoordinate(0, 0, z_start, 0, 0),
+                        ZVoxelCoordinate(-1, -1, z_end, -1, 1),
+                    ),
+                    scene=0,
+                    xRatio=round(scale_resolution.x / origin_resolution.x),
+                    yRatio=round(scale_resolution.y / origin_resolution.y),
+                    zRatio=z_ratio,
+                )
+                target_z_start = (z_start + z_ratio - 1) // z_ratio
+                target_z_end = (z_end + z_ratio - 1) // z_ratio
+                for channel_data, output_store in zip(image_region.data[0], output_stores):
+                    output_store[
+                        ts.d["channel", "z"][0, target_z_start:target_z_end]
+                    ] = np.reshape(channel_data, channel_data.shape[::-1], order="F")
+                    progress.advance(channels_task, 1)
+                progress.advance(steps_task, 1)
+                progress.reset(channels_task)
+            progress.advance(scales_task, 1)
+            progress.reset(steps_task)
 
 
 def convert_to_tensorstore_scale_metadata(scale: dict[str, Any]) -> dict[str, Any]:
