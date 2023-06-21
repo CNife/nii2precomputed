@@ -177,12 +177,12 @@ def convert_image(
         "num_channels": full_resolution_info["num_channels"],
         "type": full_resolution_info["type"],
     }
-    scales = full_resolution_info['scales']
+    scales = full_resolution_info["scales"]
 
     with Progress(console=console) as progress:
-        scales_task = progress.add_task('scales', total=len(scales))
-        steps_task = progress.add_task('steps', total=1)
-        channels_task = progress.add_task('channels', total=image_info.numChannels)
+        scales_task = progress.add_task("scales", total=len(scales))
+        steps_task = progress.add_task("steps", total=1)
+        channels_task = progress.add_task("channels", total=image_info.numChannels)
         for i, scale_info in enumerate(full_resolution_info["scales"]):
             scale_metadata = convert_to_tensorstore_scale_metadata(scale_info)
             output_stores = [
@@ -191,7 +191,10 @@ def convert_image(
                 )
                 for i in range(image_info.numChannels)
             ]
-            pretty_print_object(output_stores, title=f"tensorstore config {i}/{len(full_resolution_info['scales'])}")
+            pretty_print_object(
+                output_stores,
+                title=f"tensorstore config {i}/{len(full_resolution_info['scales'])}",
+            )
             scale_resolution = Resolution(*scale_info["resolution"])
             z_step_size = scale_metadata["chunk_size"][2] * 2
             z_steps = [
@@ -214,7 +217,9 @@ def convert_image(
                 )
                 target_z_start = (z_start + z_ratio - 1) // z_ratio
                 target_z_end = (z_end + z_ratio - 1) // z_ratio
-                for channel_data, output_store in zip(image_region.data[0], output_stores):
+                for channel_data, output_store in zip(
+                    image_region.data[0], output_stores
+                ):
                     output_store[
                         ts.d["channel", "z"][0, target_z_start:target_z_end]
                     ] = np.reshape(channel_data, channel_data.shape[::-1], order="F")
