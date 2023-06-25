@@ -2,8 +2,8 @@ from pathlib import Path
 
 from nii_2_precomputed import Resolution, convert_nii_to_precomputed
 
-image_path = Path(r"D:\EEG Data\niiData\20230608\stitched_0008.nii.gz")
-base_dir = Path(r"D:\EEG Data\niiData")
+image_path = Path(r"D:\EEG Data\nii\20230608\stitched_0004.nii.gz")
+base_dir = Path(r"D:\EEG Data\nii")
 
 folder_name = image_path.name
 if (i := folder_name.find(".nii")) >= 0:

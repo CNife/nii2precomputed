@@ -15,3 +15,11 @@ def pretty_dump_json(o: Any) -> str:
 def pretty_print_object(o: Any, title: str | None = None) -> None:
     panel = Panel(Pretty(o), title=title)
     console.print(panel)
+
+
+def humanize_size(size: int | float) -> str:
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if abs(size) < 1024.0:
+            return f"{size:.2f}{unit}"
+        size /= 1024.0
+    return f"{size:.2f}PB"
