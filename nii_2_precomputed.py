@@ -135,8 +135,12 @@ def build_base_json_dict(
     return base_dict
 
 
-def convert_image(image_path: Path, full_resolution_info: dict[str, Any], out_folder: Path,
-                  resolution: Resolution) -> None:
+def convert_image(
+    image_path: Path,
+    full_resolution_info: dict[str, Any],
+    out_folder: Path,
+    resolution: Resolution,
+) -> None:
     multiscale_metadata = {
         "data_type": full_resolution_info["data_type"],
         "num_channels": full_resolution_info["num_channels"],
@@ -150,16 +154,15 @@ def convert_image(image_path: Path, full_resolution_info: dict[str, Any], out_fo
 
         for scale_index, scale_info in enumerate(full_resolution_info["scales"]):
             progress.update(read_task, visible=True)
-            scaled_resolution = Resolution(*scale_info['resolution'])
+            scaled_resolution = Resolution(*scale_info["resolution"])
             x_ratio = round(scaled_resolution.x / resolution.x)
             y_ratio = round(scaled_resolution.y / resolution.y)
             z_ratio = round(scaled_resolution.z / resolution.z)
-            pretty_print_object((x_ratio, y_ratio, z_ratio))
-            zimg_reader = ZImg(str(image_path),
-                               xRatio=x_ratio,
-                               yRatio=y_ratio,
-                               zRatio=z_ratio)
+            zimg_reader = ZImg(
+                str(image_path), xRatio=x_ratio, yRatio=y_ratio, zRatio=z_ratio
+            )
             image_data: ndarray = zimg_reader.data[0]
+            image_data = convert_image_data(image_data)
             progress.update(read_task, visible=False)
             progress.update(channels_task, total=image_data.shape[0])
 
@@ -171,15 +174,9 @@ def convert_image(image_path: Path, full_resolution_info: dict[str, Any], out_fo
                     scale_metadata,
                     multiscale_metadata,
                 )
-                pretty_print_object(output_store, "Output TensorStore")
-                reshaped_channel_data = np.reshape(
-                    np.ravel(channel_data, order="C"),
-                    channel_data.shape[::-1],
-                    order="F",
-                )
                 output_store[ts.d["channel"][0]][
-                    ts.d["z"][0: channel_data.shape[0]]
-                ] = reshaped_channel_data
+                    ts.d["z"][0 : channel_data.shape[0]]
+                ] = channel_data.transpose()
                 progress.advance(channels_task)
 
             progress.reset(channels_task)
@@ -209,7 +206,15 @@ def open_tensorstore(
         "path": channel_name,
         "scale_metadata": scale_metadata,
         "multiscale_metadata": multiscale_metadata,
+        "open": True,
         "create": True,
-        "delete_existing": True,
     }
     return ts.open(spec).result()
+
+
+def convert_image_data(image_data: ndarray) -> ndarray:
+    if image_data.dtype in (np.float32, np.float64):
+        data_max, data_min = image_data.max(), image_data.min()
+        image_data = (image_data - data_min) / (data_max - data_min)
+        return image_data.astype(np.float32)
+    return image_data
