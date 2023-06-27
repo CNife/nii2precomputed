@@ -11,7 +11,7 @@ from numpy import ndarray
 from rich.progress import Progress
 from zimg import ZImg, ZImgInfo, ZImgSource
 
-from util import console, pretty_print_object
+from util import console, humanize_size, pretty_print_object
 
 Resolution = namedtuple("Resolution", ["x", "y", "z"])
 ImageSize = namedtuple("ImageSize", ["x", "y", "z"])
@@ -49,13 +49,6 @@ def convert_nii_to_precomputed(
 
     # 用tensorstore转换图像为neuroglancer的precomputed格式文件
     convert_image(image_path, full_resolution_info, out_folder, resolution)
-    # for i in range(image_info.numChannels):
-    #     with open(out_folder / f"channel_{i}" / "info") as channel_info_file:
-    #         channel_info_data = json.load(channel_info_file)
-    #         pretty_print_object(
-    #             channel_info_data,
-    #             f"precomputed channel info {i + 1}/{image_info.numChannels}",
-    #         )
 
 
 def read_image_info(image_path: Path) -> ZImgInfo:
@@ -162,6 +155,7 @@ def convert_image(
                 str(image_path), xRatio=x_ratio, yRatio=y_ratio, zRatio=z_ratio
             )
             image_data: ndarray = zimg_reader.data[0]
+            console.print(f"Read [blue]{humanize_size(image_data.nbytes)}[/blue] data in memory")
             image_data = convert_image_data(image_data)
             progress.update(read_task, visible=False)
             progress.update(channels_task, total=image_data.shape[0])
