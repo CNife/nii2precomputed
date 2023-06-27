@@ -15,5 +15,9 @@ out_folder_url_path = "/".join(out_folder.relative_to(base_dir).parts)
 url_path = f"http://localhost:8080/{out_folder_url_path}"
 
 convert_nii_to_precomputed(
-    out_folder, image_path, url_path, resolution=Resolution(10_000, 10_000, 10_000)
+    out_folder,
+    image_path,
+    url_path,
+    # resolution=Resolution(10_000, 10_000, 10_000)
+    resolution=Resolution(1_250_000, 1_250_000, 1_250_000),
 )

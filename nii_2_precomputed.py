@@ -145,7 +145,7 @@ def convert_image(
         read_task = progress.add_task("Reading data", total=None)
         channels_task = progress.add_task("channels")
 
-        for scale_index, scale_info in enumerate(full_resolution_info["scales"]):
+        for scale_index, scale_info in enumerate(scales):
             progress.update(read_task, visible=True)
             scaled_resolution = Resolution(*scale_info["resolution"])
             x_ratio = round(scaled_resolution.x / resolution.x)
@@ -155,7 +155,9 @@ def convert_image(
                 str(image_path), xRatio=x_ratio, yRatio=y_ratio, zRatio=z_ratio
             )
             image_data: ndarray = zimg_reader.data[0]
-            console.print(f"Read [blue]{humanize_size(image_data.nbytes)}[/blue] data in memory")
+            console.print(
+                f"Read [blue]{humanize_size(image_data.nbytes)}[/blue] data in memory"
+            )
             image_data = convert_image_data(image_data)
             progress.update(read_task, visible=False)
             progress.update(channels_task, total=image_data.shape[0])
