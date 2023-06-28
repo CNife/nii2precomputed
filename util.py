@@ -13,7 +13,7 @@ def pretty_dump_json(o: Any) -> str:
 
 
 def pretty_print_object(o: Any, title: str | None = None) -> None:
-    panel = Panel(Pretty(o), title=title)
+    panel = Panel(Pretty(o, indent_size=2), title=title)
     console.print(panel)
 
 
