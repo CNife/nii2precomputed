@@ -1,6 +1,6 @@
 import json
+import math
 from pathlib import Path
-import sys
 from typing import Any
 
 import numpy as np
@@ -24,7 +24,7 @@ from nii_2_precomputed import (
 from util import console, humanize_size, pretty_print_object
 
 
-def compute_new_size(image_info: ZImgInfo, target_y: int) -> ImageSize:
+def compute_new_size(image_info: ZImgInfo, target_y: int) -> tuple[ImageSize, int]:
     origin_size = ImageSize(x=image_info.width, y=image_info.height, z=image_info.depth)
     pretty_print_object(origin_size, "origin image size")
     ratio = origin_size.y / target_y
@@ -34,11 +34,11 @@ def compute_new_size(image_info: ZImgInfo, target_y: int) -> ImageSize:
         z=round(origin_size.z / ratio),
     )
     pretty_print_object(result, "new image size")
-    return result
+    return result, math.floor(ratio)
 
 
-def read_image_data(image_path: Path) -> ndarray:
-    image_data_obj = ZImg(str(image_path))
+def read_image_data(image_path: Path, read_ratio: int) -> ndarray:
+    image_data_obj = ZImg(str(image_path), xRatio=read_ratio, yRatio=read_ratio, zRatio=read_ratio)
     image_data = image_data_obj.data[0][0]
     console.print(f"Image size in memory: {humanize_size(image_data.nbytes)}")
     return image_data.transpose().copy()
@@ -82,17 +82,17 @@ def write_tensorstore(
 
 
 def main():
-    image_path = Path(sys.argv[1])
+    image_path = Path(r"D:\EEG Data\nii\20230530\full16_100um_2009b_sym.nii.gz")
     out_folder = image_path.parent / image_path.stem
     out_folder.mkdir(parents=True, exist_ok=True)
     resolution = Resolution(1_250_000, 1_250_000, 1_250_000)
 
     image_info = read_image_info(image_path)
-    new_size = compute_new_size(image_info, 175)
+    new_size, read_ratio = compute_new_size(image_info, 175)
     info = build_full_resolution_info(image_info.dataTypeString(), resolution, new_size)
     pretty_print_object(info, "info")
 
-    image_data = read_image_data(image_path)
+    image_data = read_image_data(image_path, read_ratio)
     resized_image = resize(image_data, new_size, anti_aliasing=True)
     resized_image = convert_skimage_dtype(resized_image, image_data.dtype)
 
