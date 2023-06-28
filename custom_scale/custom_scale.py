@@ -38,7 +38,9 @@ def compute_new_size(image_info: ZImgInfo, target_y: int) -> tuple[ImageSize, in
 
 
 def read_image_data(image_path: Path, read_ratio: int) -> ndarray:
-    image_data_obj = ZImg(str(image_path), xRatio=read_ratio, yRatio=read_ratio, zRatio=read_ratio)
+    image_data_obj = ZImg(
+        str(image_path), xRatio=read_ratio, yRatio=read_ratio, zRatio=read_ratio
+    )
     image_data = image_data_obj.data[0][0]
     console.print(f"Image size in memory: {humanize_size(image_data.nbytes)}")
     return image_data.transpose().copy()
