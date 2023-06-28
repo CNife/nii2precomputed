@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import sys
 from typing import Any
 
 import numpy as np
@@ -81,10 +82,7 @@ def write_tensorstore(
 
 
 def main():
-    image_path = Path(
-        # r"C:\Workspace\002_slice_0020_fused_tp_0_ch_0_cropped_v2n4corr.nii.gz"
-        r"C:\Workspace\stitched_0004.nii.gz"
-    )
+    image_path = Path(sys.argv[1])
     out_folder = image_path.parent / image_path.stem
     out_folder.mkdir(parents=True, exist_ok=True)
     resolution = Resolution(1_250_000, 1_250_000, 1_250_000)
