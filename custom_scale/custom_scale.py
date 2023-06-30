@@ -1,4 +1,3 @@
-import json
 import math
 from pathlib import Path
 from typing import Any
@@ -14,26 +13,26 @@ from zimg import ZImg, ZImgInfo
 from nii_2_precomputed import (
     ImageSize,
     Resolution,
-    build_base_json_dict,
+    build_and_write_base_json,
     build_full_resolution_info,
     convert_image_data,
     convert_to_tensorstore_scale_metadata,
     open_tensorstore,
     read_image_info,
 )
-from util import console, humanize_size, pretty_print_object
+from util import console, dbg, humanize_size
 
 
 def compute_new_size(image_info: ZImgInfo, target_y: int) -> tuple[ImageSize, int]:
     origin_size = ImageSize(x=image_info.width, y=image_info.height, z=image_info.depth)
-    pretty_print_object(origin_size, "origin image size")
+    dbg(origin_size, "origin image size")
     ratio = origin_size.y / target_y
     result = ImageSize(
         x=round(origin_size.x / ratio),
         y=target_y,
         z=round(origin_size.z / ratio),
     )
-    pretty_print_object(result, "new image size")
+    dbg(result, "new image size")
     return result, math.floor(ratio)
 
 
@@ -92,18 +91,20 @@ def main():
     image_info = read_image_info(image_path)
     new_size, read_ratio = compute_new_size(image_info, 175)
     info = build_full_resolution_info(image_info.dataTypeString(), resolution, new_size)
-    pretty_print_object(info, "info")
+    dbg(info, "info")
 
     image_data = read_image_data(image_path, read_ratio)
     resized_image = resize(image_data, new_size, anti_aliasing=True)
     resized_image = convert_skimage_dtype(resized_image, image_data.dtype)
 
-    base_json_dict = build_base_json_dict(
-        image_info, resolution, new_size, resized_image.dtype, "http://localhost:8080"
+    build_and_write_base_json(
+        image_info.channelColors,
+        resolution,
+        new_size,
+        resized_image.dtype,
+        "http://localhost:8080",
+        out_folder,
     )
-    pretty_print_object(base_json_dict, "base.json")
-    with open(out_folder / "base.json", "w") as base_json_file:
-        json.dump(base_json_dict, base_json_file, indent=2)
 
     write_tensorstore(info, resized_image, out_folder)
 

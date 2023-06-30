@@ -1,13 +1,15 @@
 import collections
 
-LENGTH_UNITS = collections.OrderedDict([
-    ("km", 1e-12),
-    ("m", 1e-9),
-    ("mm", 1e-6),
-    ("um", 1e-3),
-    ("nm", 1.),
-    ("pm", 1e3),
-])
+LENGTH_UNITS = collections.OrderedDict(
+    [
+        ("km", 1e-12),
+        ("m", 1e-9),
+        ("mm", 1e-6),
+        ("um", 1e-3),
+        ("nm", 1.0),
+        ("pm", 1e3),
+    ]
+)
 """List of physical units of length."""
 
 
