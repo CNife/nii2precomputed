@@ -7,6 +7,9 @@
 ```shell
 conda create -n nii2precomputed python=3.10
 conda activate nii2precomputed
-conda install -c fenglab zimg rich
-pip install neuroglancer_scripts tensorstore
+conda install zimg scikit-image numpy Pillow rich typer -c fenglab
+pip install tensorstore
+
+# optional
+conda install jupyter black[jupyter] isort
 ```

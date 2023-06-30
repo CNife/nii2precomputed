@@ -32,8 +32,6 @@ def write_image(
     image_path = output_dir / f"{z}.png"
     Image.fromarray(image, "L").save(image_path)
     return z
-    # console.print(f"{z}.png saved")
-    # progress.advance(pbar_task)
 
 
 def new_main(image_file: Path, image_count: int, output_dir: Path) -> None:

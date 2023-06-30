@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 import tensorstore as ts
-from neuroglancer_scripts.dyadic_pyramid import fill_scales_for_dyadic_pyramid
+from vendor.neuroglancer_scripts_dyadic_pyramid import fill_scales_for_dyadic_pyramid
 from numpy import ndarray
 from rich.progress import Progress
 from zimg import ZImg, ZImgInfo, ZImgSource
@@ -171,7 +171,7 @@ def convert_image(
                     multiscale_metadata,
                 )
                 output_store[ts.d["channel"][0]][
-                    ts.d["z"][0 : channel_data.shape[0]]
+                    ts.d["z"][0: channel_data.shape[0]]
                 ] = channel_data.transpose()
                 progress.advance(channels_task)
 
