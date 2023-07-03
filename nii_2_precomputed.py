@@ -172,7 +172,7 @@ def convert_image(
                     multiscale_metadata,
                 )
                 output_store[ts.d["channel"][0]][
-                    ts.d["z"][0: channel_data.shape[0]]
+                    ts.d["z"][0 : channel_data.shape[0]]
                 ] = channel_data.transpose()
                 progress.advance(channels_task)
 
