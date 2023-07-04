@@ -1,6 +1,6 @@
 $miniserve = Start-Process `
     -FilePath 'miniserve' `
-    -ArgumentList '--verbose', '--header', '"Access-Control-Allow-Origin: *"', '"D:\EEG Data\nii"' `
+    -ArgumentList '--verbose', '--header', '"Access-Control-Allow-Origin: *"', '"C:\Workspace\splice_nii"' `
     -PassThru `
     -NoNewWindow
 $neuroglancer = Start-Process `

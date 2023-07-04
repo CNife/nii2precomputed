@@ -5,16 +5,15 @@
 3. 分别读取NII文件，缩放图片尺寸，写入多分辨率缩放尺寸、多文件的precomputed数据
 """
 from pathlib import Path
-from typing import Any
 
 import cv2
 import numpy as np
-import tensorstore as ts
 import typer
 from numpy import dtype, ndarray
-from rich.progress import Progress
+from rich.progress import track
 from zimg import ZImg, ZImgInfo
 
+from custom_scale.custom_scale import write_tensorstore
 from nii_2_precomputed import (
     Color,
     ImageSize,
@@ -22,7 +21,7 @@ from nii_2_precomputed import (
     build_and_write_base_json,
     build_full_resolution_info,
     convert_color,
-    convert_image_data, convert_to_tensorstore_scale_metadata, open_tensorstore, read_image_info,
+    convert_image_data, read_image_info,
 )
 from util import console, dbg, dbg_args
 
@@ -65,7 +64,8 @@ def main(
         output_base_dir,
     )
 
-    convert_data(image_z_offsets, huge_image_size, output_base_dir, info_dict)
+    image_data = read_all_images(huge_image_size, data_type, image_z_offsets)
+    write_tensorstore(info_dict, image_data, output_base_dir)
 
 
 def list_files_by_name(image_files_dir: Path) -> list[Path]:
@@ -130,43 +130,25 @@ def is_close(a: int, b: int, ratio: float = 0.1) -> bool:
     return diff / a < ratio
 
 
-def convert_data(
-    image_z_offsets: dict[Path, int],
-    huge_image_size: ImageSize,
-    output_base_dir: Path,
-    info_dict: dict[str, Any],
-) -> None:
-    multiscale_metadata = {
-        "data_type": info_dict["data_type"],
-        "num_channels": info_dict["num_channels"],
-        "type": info_dict["type"],
-    }
-    scales = info_dict["scales"]
-
-    with Progress(console=console) as progress:
-        scales_task = progress.add_task("scales", total=len(scales))
-        images_task = progress.add_task("images", total=len(image_z_offsets))
-
-        for scale in scales:
-            scale_metadata = convert_to_tensorstore_scale_metadata(scale)
-            output_store = open_tensorstore("channel_0", output_base_dir, scale_metadata, multiscale_metadata)
-            for image_path, z_offset in image_z_offsets.items():
-                zimg_obj = ZImg(str(image_path))
-                data = convert_image_data(zimg_obj.data[0][0])
-                z_size = data.shape[2]
-                resized_data = resize_image(data, scale['size'][0], scale['size'][1])
-                output_store[ts.d['channel'][0]][ts.d['z'][z_offset:z_offset + z_size]] = resized_data
-                progress.advance(images_task)
-
-            progress.advance(scales_task)
-            progress.reset(images_task)
+def read_all_images(huge_image_size: ImageSize, data_type: dtype, image_z_offsets: dict[Path, int]) -> ndarray:
+    result = np.empty(huge_image_size, dtype=data_type)
+    for image_path, z_offset in track(image_z_offsets.items(), description="Reading images", total=len(image_z_offsets),
+                                      console=console):
+        zimg_obj = ZImg(str(image_path))
+        zimg_data = zimg_obj.data[0][0].transpose()
+        resized_image_data = convert_image_data(resize_image(zimg_data, huge_image_size.x, huge_image_size.y))
+        result[:, :, z_offset:z_offset + resized_image_data.shape[2]] = resized_image_data
+    return result
 
 
 def resize_image(image: ndarray, target_x: int, target_y: int) -> ndarray:
     return np.array(
-        [cv2.resize(single_image, (target_x, target_y), interpolation=cv2.INTER_AREA) for single_image in image],
+        [
+            cv2.resize(single_image, (target_x, target_y), interpolation=cv2.INTER_AREA)
+            for single_image in image.transpose()
+        ],
         dtype=image.dtype
-    )
+    ).transpose()
 
 
 if __name__ == "__main__":

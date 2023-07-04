@@ -48,7 +48,7 @@ def read_image_data(image_path: Path, read_ratio: int) -> ndarray:
 def convert_skimage_dtype(image: ndarray, target_dtype: np.dtype) -> ndarray:
     match target_dtype:
         case np.float32:
-            return img_as_float(image).asdtype(np.float32)
+            return img_as_float(image).astype(np.float32)
         case np.float64:
             return img_as_float(image)
         case np.uint8:
