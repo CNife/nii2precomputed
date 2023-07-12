@@ -5,12 +5,28 @@ from datetime import datetime
 from pathlib import Path
 
 import typer
+from rich import Console
 from zimg import ZImg, ZImgInfo, ZImgRegion, ZVoxelCoordinate
 
 from util import dbg_args
 
 
 def convert_czi_2_single_image(image_path: str, out_dir: str, z: int) -> str:
+    console = Console()
+
+    result_file_name = f"luo_{z:04d}.nim"
+    result_path = os.path.join(out_dir, result_file_name)
+    if os.path.exists(result_path):
+        console.log(f"SKIP {result_file_name}: file already exists")
+        return result_path
+
+    working_file = result_path + ".working"
+    if os.path.exists(working_file):
+        console.log(f"SKIP {result_file_name}: working file exists")
+        return result_path
+    with open(working_file, "w") as f:
+        f.write(result_file_name)
+
     start_time = datetime.now()
     single_image_data = ZImg(
         image_path,
@@ -19,12 +35,12 @@ def convert_czi_2_single_image(image_path: str, out_dir: str, z: int) -> str:
         ),
         scene=0,
     )
-    result_file_name = f"luo_{z:04d}.nim"
-    result_path = os.path.join(out_dir, result_file_name)
     single_image_data.save(result_path)
     end_time = datetime.now()
     used_seconds = (end_time - start_time).total_seconds()
-    print(
+
+    os.remove(working_file)
+    console.log(
         f"DONE [{end_time.strftime('%Y-%m-%d %H:%M:%S')}] used {used_seconds}s : {result_file_name}"
     )
     return result_path
@@ -36,7 +52,7 @@ def main(
     start_z: int = 0,
     end_z: int = -1,
     reverse: bool = True,
-    max_workers: int | None = None
+    max_workers: int | None = None,
 ) -> None:
     if end_z < start_z:
         zimg_info: ZImgInfo = ZImg.readImgInfos(str(image_path))[0]
