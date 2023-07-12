@@ -21,12 +21,7 @@ def convert_czi_2_single_image(image_path: str, out_dir: str, z: int) -> str:
     return result_path
 
 
-def main(
-    image_path: Path,
-    out_dir: Path,
-    start_z: int = 0,
-    end_z: int = -1,
-) -> None:
+def main(image_path: Path, out_dir: Path, start_z: int = 0, end_z: int = -1) -> None:
     if end_z < start_z:
         # noinspection PyTypeChecker
         zimg_info: ZImgInfo = ZImg.readImgInfos(str(image_path))[0]
