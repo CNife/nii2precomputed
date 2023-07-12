@@ -34,7 +34,7 @@ def main(image_path: Path, out_dir: Path, start_z: int = 0, end_z: int = -1) -> 
             convert_czi_2_single_image,
             itertools.repeat(str(image_path)),
             itertools.repeat(str(out_dir)),
-            range(end_z - 1, start_z, -1),
+            reversed(range(start_z, end_z))
         )
         result_files = list(result_files)
         print(f"{len(result_files)}/{end_z - start_z} images converted")
