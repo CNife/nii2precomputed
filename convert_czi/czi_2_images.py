@@ -6,6 +6,8 @@ from pathlib import Path
 import typer
 from zimg import ZImg, ZImgInfo, ZImgRegion, ZVoxelCoordinate
 
+from util import dbg_args
+
 
 def convert_czi_2_single_image(image_path: str, out_dir: str, z: int) -> str:
     single_image_data = ZImg(
@@ -23,15 +25,16 @@ def convert_czi_2_single_image(image_path: str, out_dir: str, z: int) -> str:
 
 def main(image_path: Path, out_dir: Path, start_z: int = 0, end_z: int = -1) -> None:
     if end_z < start_z:
-        # noinspection PyTypeChecker
         zimg_info: ZImgInfo = ZImg.readImgInfos(str(image_path))[0]
         end_z = zimg_info.depth
+    dbg_args()
+
     with ProcessPoolExecutor() as executor:
         result_files = executor.map(
             convert_czi_2_single_image,
             itertools.repeat(str(image_path)),
             itertools.repeat(str(out_dir)),
-            range(start_z, end_z),
+            range(end_z - 1, start_z, -1),
         )
         result_files = list(result_files)
         print(f"{len(result_files)}/{end_z - start_z} images converted")
