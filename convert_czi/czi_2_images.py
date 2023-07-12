@@ -23,10 +23,11 @@ def convert_czi_2_single_image(image_path: str, out_dir: str, z: int) -> str:
     return result_path
 
 
-def main(image_path: Path, out_dir: Path, start_z: int = 0, end_z: int = -1) -> None:
+def main(image_path: Path, out_dir: Path, start_z: int = 0, end_z: int = -1, reverse: bool = True) -> None:
     if end_z < start_z:
         zimg_info: ZImgInfo = ZImg.readImgInfos(str(image_path))[0]
         end_z = zimg_info.depth
+    z_range = range(start_z, end_z)
     dbg_args()
 
     with ProcessPoolExecutor() as executor:
@@ -34,7 +35,7 @@ def main(image_path: Path, out_dir: Path, start_z: int = 0, end_z: int = -1) -> 
             convert_czi_2_single_image,
             itertools.repeat(str(image_path)),
             itertools.repeat(str(out_dir)),
-            reversed(range(start_z, end_z))
+            reversed(z_range) if reverse else z_range
         )
         result_files = list(result_files)
         print(f"{len(result_files)}/{end_z - start_z} images converted")
