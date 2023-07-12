@@ -9,7 +9,7 @@ def main(
     image_path: Path,
     resolution: int,
     base_dir: Path | None = None,
-    base_url: str = "http://localhost:8080"
+    base_url: str = "http://localhost:8080",
 ) -> None:
     if base_dir is None:
         base_dir = image_path.parent
@@ -25,5 +25,5 @@ def main(
     convert_nii_to_precomputed(out_folder, image_path, url_path, resolution)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     typer.run(main)

@@ -21,7 +21,8 @@ from nii_2_precomputed import (
     build_and_write_base_json,
     build_full_resolution_info,
     convert_color,
-    convert_image_data, read_image_info,
+    convert_image_data,
+    read_image_info,
 )
 from util import console, dbg, dbg_args
 
@@ -130,14 +131,24 @@ def is_close(a: int, b: int, ratio: float = 0.1) -> bool:
     return diff / a < ratio
 
 
-def read_all_images(huge_image_size: ImageSize, data_type: dtype, image_z_offsets: dict[Path, int]) -> ndarray:
+def read_all_images(
+    huge_image_size: ImageSize, data_type: dtype, image_z_offsets: dict[Path, int]
+) -> ndarray:
     result = np.empty(huge_image_size, dtype=data_type)
-    for image_path, z_offset in track(image_z_offsets.items(), description="Reading images", total=len(image_z_offsets),
-                                      console=console):
+    for image_path, z_offset in track(
+        image_z_offsets.items(),
+        description="Reading images",
+        total=len(image_z_offsets),
+        console=console,
+    ):
         zimg_obj = ZImg(str(image_path))
         zimg_data = zimg_obj.data[0][0].transpose()
-        resized_image_data = convert_image_data(resize_image(zimg_data, huge_image_size.x, huge_image_size.y))
-        result[:, :, z_offset:z_offset + resized_image_data.shape[2]] = resized_image_data
+        resized_image_data = convert_image_data(
+            resize_image(zimg_data, huge_image_size.x, huge_image_size.y)
+        )
+        result[
+            :, :, z_offset : z_offset + resized_image_data.shape[2]
+        ] = resized_image_data
     return result
 
 
@@ -147,7 +158,7 @@ def resize_image(image: ndarray, target_x: int, target_y: int) -> ndarray:
             cv2.resize(single_image, (target_x, target_y), interpolation=cv2.INTER_AREA)
             for single_image in image.transpose()
         ],
-        dtype=image.dtype
+        dtype=image.dtype,
     ).transpose()
 
 
