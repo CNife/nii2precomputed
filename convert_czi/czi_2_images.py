@@ -1,6 +1,7 @@
 import itertools
 import os
 from concurrent.futures import ProcessPoolExecutor
+from datetime import datetime
 from pathlib import Path
 
 import typer
@@ -10,6 +11,7 @@ from util import dbg_args
 
 
 def convert_czi_2_single_image(image_path: str, out_dir: str, z: int) -> str:
+    start_time = datetime.now()
     single_image_data = ZImg(
         image_path,
         region=ZImgRegion(
@@ -17,13 +19,24 @@ def convert_czi_2_single_image(image_path: str, out_dir: str, z: int) -> str:
         ),
         scene=0,
     )
-    result_path = os.path.join(out_dir, f"luo_{z:04d}.nim")
+    result_file_name = f"luo_{z:04d}.nim"
+    result_path = os.path.join(out_dir, result_file_name)
     single_image_data.save(result_path)
-    print(f"DONE: {result_path}")
+    end_time = datetime.now()
+    used_seconds = (end_time - start_time).total_seconds()
+    print(
+        f"DONE [{end_time.strftime('%Y-%m-%d %H:%M:%S')}] used {used_seconds}s : {result_file_name}"
+    )
     return result_path
 
 
-def main(image_path: Path, out_dir: Path, start_z: int = 0, end_z: int = -1, reverse: bool = True) -> None:
+def main(
+    image_path: Path,
+    out_dir: Path,
+    start_z: int = 0,
+    end_z: int = -1,
+    reverse: bool = True,
+) -> None:
     if end_z < start_z:
         zimg_info: ZImgInfo = ZImg.readImgInfos(str(image_path))[0]
         end_z = zimg_info.depth
@@ -35,7 +48,7 @@ def main(image_path: Path, out_dir: Path, start_z: int = 0, end_z: int = -1, rev
             convert_czi_2_single_image,
             itertools.repeat(str(image_path)),
             itertools.repeat(str(out_dir)),
-            reversed(z_range) if reverse else z_range
+            reversed(z_range) if reverse else z_range,
         )
         result_files = list(result_files)
         print(f"{len(result_files)}/{end_z - start_z} images converted")
