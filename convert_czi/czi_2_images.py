@@ -1,4 +1,5 @@
 import itertools
+import math
 import os
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
@@ -37,11 +38,11 @@ def convert_czi_2_single_image(image_path: str, out_dir: str, z: int) -> str:
     )
     single_image_data.save(result_path)
     end_time = datetime.now()
-    used_seconds = (end_time - start_time).total_seconds()
+    used_seconds = math.ceil((end_time - start_time).total_seconds())
 
     os.remove(working_file)
     console.log(
-        f"DONE [{end_time.strftime('%Y-%m-%d %H:%M:%S')}] used {used_seconds}s : {result_file_name}"
+        f"DONE [{end_time.strftime('%Y-%m-%d %H:%M:%S')}] {result_file_name} used {used_seconds}s"
     )
     return result_path
 
