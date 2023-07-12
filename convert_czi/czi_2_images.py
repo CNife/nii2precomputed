@@ -36,6 +36,7 @@ def main(
     start_z: int = 0,
     end_z: int = -1,
     reverse: bool = True,
+    max_workers: int | None = None
 ) -> None:
     if end_z < start_z:
         zimg_info: ZImgInfo = ZImg.readImgInfos(str(image_path))[0]
@@ -43,7 +44,7 @@ def main(
     z_range = range(start_z, end_z)
     dbg_args()
 
-    with ProcessPoolExecutor() as executor:
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
         result_files = executor.map(
             convert_czi_2_single_image,
             itertools.repeat(str(image_path)),
