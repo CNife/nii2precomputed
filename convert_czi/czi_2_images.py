@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 import typer
-from rich import Console
+from rich.console import Console
 from zimg import ZImg, ZImgInfo, ZImgRegion, ZVoxelCoordinate
 
 from util import dbg_args
