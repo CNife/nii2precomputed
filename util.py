@@ -31,20 +31,6 @@ def dbg_args() -> None:
     )
 
 
-# def dbg_fn(func: Callable[..., Any]) -> Callable[..., Any]:
-#     def wrapper(*args: Any, **kwargs: dict[str, Any]) -> Any:
-#         dbg_args()
-#         try:
-#             result = func(*args, **kwargs)
-#         except Exception as e:
-#             console.print_exception()
-#         else:
-#             dbg(result, "Result")
-#             return result
-#
-#     return wrapper
-
-
 def humanize_size(size: int | float) -> str:
     for unit in ("B", "KB", "MB", "GB", "TB"):
         if abs(size) < 1024.0:
