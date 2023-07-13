@@ -1,6 +1,6 @@
 $miniserve = Start-Process `
     -FilePath 'miniserve' `
-    -ArgumentList '--verbose', '--header', '"Access-Control-Allow-Origin: *"', '"C:\Workspace\splice_nii"' `
+    -ArgumentList '--verbose', '--header', '"Access-Control-Allow-Origin: *"', '"D:\WorkData\czi\precomputed"' `
     -PassThru `
     -NoNewWindow
 $neuroglancer = Start-Process `

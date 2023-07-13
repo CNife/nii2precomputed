@@ -1,12 +1,13 @@
 import inspect
 import json
-from typing import Any
+from typing import Any, Iterable, TypeVar
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.pretty import Pretty
 
 console = Console()
+T = TypeVar("T")
 
 
 def pretty_dump_json(o: Any) -> str:
@@ -37,3 +38,8 @@ def humanize_size(size: int | float) -> str:
             return f"{size:.2f}{unit}"
         size /= 1024.0
     return f"{size:.2f}PB"
+
+
+def chunks(lst: list[T], chunk_size: int) -> Iterable[list[T]]:
+    for i in range(0, len(lst), chunk_size):
+        yield lst[i : i + chunk_size]

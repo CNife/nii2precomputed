@@ -2,20 +2,21 @@ import copy
 import json
 from collections import namedtuple
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeAlias
 
 import numpy as np
 import tensorstore as ts
 from numpy import ndarray
-from rich.progress import Progress
-from zimg import ZImg, ZImgInfo, ZImgSource, col4
+from zimg import Dimension, VoxelSizeUnit, ZImg, ZImgInfo, col4
 
-from util import console, dbg, humanize_size
+from util import dbg
 from vendor.neuroglancer_scripts_dyadic_pyramid import fill_scales_for_dyadic_pyramid
 
 Resolution = namedtuple("Resolution", ["x", "y", "z"])
 ImageSize = namedtuple("ImageSize", ["x", "y", "z"])
 Color = namedtuple("Color", ["r", "g", "b", "a"])
+
+PathLike: TypeAlias = Path | str
 
 
 def convert_nii_to_precomputed(
@@ -42,18 +43,24 @@ def convert_nii_to_precomputed(
 
     # 构造并写入neuroglancer的base.json
     build_and_write_base_json(
-        image_info, resolution, image_size, data_type, url_path, out_folder
+        image_info.channelColors,
+        resolution,
+        image_size,
+        data_type,
+        url_path,
+        out_folder,
     )
 
     # 用tensorstore转换图像为neuroglancer的precomputed格式文件
     convert_image(image_path, full_resolution_info, out_folder, resolution)
 
 
-def read_image_info(image_path: Path) -> ZImgInfo:
-    # noinspection PyArgumentList
-    image_info: ZImgInfo = ZImg.readImgInfo(ZImgSource(str(image_path)))
-    assert image_info.numTimes == 1
-    return image_info
+def read_image_info(image_path: PathLike | list[PathLike]) -> ZImgInfo:
+    if isinstance(image_path, list):
+        image_infos = ZImg.readImgInfos(filenames=image_path, catDim=Dimension.Z, catScenes=False)
+    else:
+        image_infos = ZImg.readImgInfos(filename=image_path)
+    return image_infos[0]
 
 
 def build_full_resolution_info(
@@ -130,10 +137,11 @@ def build_and_write_base_json(
 
 
 def convert_image(
-    image_path: Path,
+    image_path: Path | list[str],
     full_resolution_info: dict[str, Any],
     out_folder: Path,
     resolution: Resolution,
+    offset: int = 0,
 ) -> None:
     multiscale_metadata = {
         "data_type": full_resolution_info["data_type"],
@@ -141,43 +149,40 @@ def convert_image(
         "type": full_resolution_info["type"],
     }
     scales = full_resolution_info["scales"]
-    with Progress(console=console) as progress:
-        scales_task = progress.add_task("scales", total=len(scales))
-        read_task = progress.add_task("Reading data", total=None)
-        channels_task = progress.add_task("channels")
 
-        for scale_index, scale_info in enumerate(scales):
-            progress.update(read_task, visible=True)
-            scaled_resolution = Resolution(*scale_info["resolution"])
-            x_ratio = round(scaled_resolution.x / resolution.x)
-            y_ratio = round(scaled_resolution.y / resolution.y)
-            z_ratio = round(scaled_resolution.z / resolution.z)
+    for scale_info in scales:
+        scaled_resolution = Resolution(*scale_info["resolution"])
+        x_ratio = round(scaled_resolution.x / resolution.x)
+        y_ratio = round(scaled_resolution.y / resolution.y)
+        z_ratio = round(scaled_resolution.z / resolution.z)
+        if isinstance(image_path, list):
             zimg_reader = ZImg(
-                str(image_path), xRatio=x_ratio, yRatio=y_ratio, zRatio=z_ratio
+                filenames=image_path,
+                catDim=Dimension.Z,
+                catScenes=False,
+                xRatio=x_ratio,
+                yRatio=y_ratio,
+                zRatio=z_ratio,
             )
-            image_data: ndarray = zimg_reader.data[0]
-            console.print(
-                f"Read [blue]{humanize_size(image_data.nbytes)}[/blue] data in memory"
+        else:
+            zimg_reader = ZImg(
+                filename=str(image_path), xRatio=x_ratio, yRatio=y_ratio, zRatio=z_ratio
             )
-            image_data = convert_image_data(image_data)
-            progress.update(read_task, visible=False)
-            progress.update(channels_task, total=image_data.shape[0])
+        image_data: ndarray = zimg_reader.data[0][0]
+        image_data = convert_image_data(image_data)
 
-            scale_metadata = convert_to_tensorstore_scale_metadata(scale_info)
-            for channel, channel_data in enumerate(image_data):
-                output_store = open_tensorstore(
-                    f"channel_{channel}",
-                    out_folder,
-                    scale_metadata,
-                    multiscale_metadata,
-                )
-                output_store[ts.d["channel"][0]][
-                    ts.d["z"][0 : channel_data.shape[0]]
-                ] = channel_data.transpose()
-                progress.advance(channels_task)
-
-            progress.reset(channels_task)
-            progress.advance(scales_task)
+        scale_metadata = convert_to_tensorstore_scale_metadata(scale_info)
+        output_store = open_tensorstore(
+            f"channel_0",
+            out_folder,
+            scale_metadata,
+            multiscale_metadata,
+        )
+        ts_z_start = (offset + z_ratio - 1) // z_ratio
+        ts_z_end = (offset + image_data.shape[0] + z_ratio - 1) // z_ratio
+        output_store[ts.d["channel"][0]][
+            ts.d["z"][ts_z_start: ts_z_end]
+        ] = image_data.transpose()
 
 
 def convert_to_tensorstore_scale_metadata(scale: dict[str, Any]) -> dict[str, Any]:
@@ -219,3 +224,23 @@ def convert_image_data(image_data: ndarray) -> ndarray:
 
 def convert_color(origin_color: col4) -> Color:
     return Color(origin_color.r, origin_color.g, origin_color.b, origin_color.a)
+
+
+unit_scales = {
+    VoxelSizeUnit.nm: 1,
+    VoxelSizeUnit.um: 1000,
+    VoxelSizeUnit.mm: 1000000,
+}
+
+
+def get_resolution(image_info: ZImgInfo) -> Resolution:
+    scale = unit_scales[image_info.voxelSizeUnit]
+    return Resolution(
+        x=image_info.voxelSizeX * scale,
+        y=image_info.voxelSizeY * scale,
+        z=image_info.voxelSizeZ * scale,
+    )
+
+
+def get_image_size(image_info: ZImgInfo) -> ImageSize:
+    return ImageSize(x=image_info.width, y=image_info.height, z=image_info.depth)
