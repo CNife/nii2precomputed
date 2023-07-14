@@ -1,4 +1,5 @@
 import json
+import multiprocessing
 from pathlib import Path
 from typing import Any
 
@@ -78,71 +79,93 @@ def convert_to_precomputed(
     resolution: Resolution,
     scaled_batch_size_x: int,
     scaled_batch_size_y: int,
-):
+) -> None:
     multiscale_metadata = {
         "data_type": info["data_type"],
         "num_channels": info["num_channels"],
         "type": info["type"],
     }
+    ctx = multiprocessing.get_context('spawn')
 
     for scale in info["scales"]:
-        scaled_resolution = Resolution(*scale["resolution"])
-        x_ratio = round(scaled_resolution.x / resolution.x)
-        y_ratio = round(scaled_resolution.y / resolution.y)
-        z_ratio = round(scaled_resolution.z / resolution.z)
-
-        scale_metadata = convert_to_tensorstore_scale_metadata(scale)
-        output_store = open_tensorstore(
-            f"channel_0",
-            out_dir,
-            scale_metadata,
-            multiscale_metadata,
-        )
-
         batch_size = scale["chunk_sizes"][0][2]
         z_ranges = [
             (start_z + i * batch_size, min(end_z, batch_size * (i + 1)))
             for i in range(scale_size(end_z, batch_size))
         ]
         for z_start, z_end in z_ranges:
-            zimg_reader = ZImg(
-                filenames=image_paths[z_start:z_end],
-                catDim=Dimension.Z,
-                catScenes=False,
-                xRatio=x_ratio,
-                yRatio=y_ratio,
-                zRatio=z_ratio,
+            finish_queue = ctx.Queue()
+            worker_process = ctx.Process(
+                target=read_convert_write,
+                args=(
+                    scale,
+                    z_start,
+                    z_end,
+                    image_paths,
+                    multiscale_metadata,
+                    out_dir,
+                    resolution,
+                    scaled_batch_size_x,
+                    scaled_batch_size_y,
+                    finish_queue
+                ),
             )
-            image_data: ndarray = zimg_reader.data[0][0].transpose()
-            console.log(
-                f"SCALE{(x_ratio, y_ratio, z_ratio)}: read data in z range {(z_start, z_end)} in memory: {humanize_size(image_data.nbytes)}"
-            )
-            image_data = convert_image_data(image_data)
+            worker_process.start()
+            _ = finish_queue.get(True)
+            # zimg有bug，无法正常结束进程，需要强制结束
+            worker_process.terminate()
 
-            target_z_start, target_z_end = scale_size(z_start, z_ratio), scale_size(
-                z_end, z_ratio
+
+def read_convert_write(scale: dict[str, Any], z_start: int, z_end: int, image_paths: list[str],
+                       multiscale_metadata: dict[str, Any], out_dir: Path, resolution: Resolution,
+                       scaled_batch_size_x: int, scaled_batch_size_y: int, finish_queue) -> None:
+    scaled_resolution = Resolution(*scale["resolution"])
+    x_ratio = round(scaled_resolution.x / resolution.x)
+    y_ratio = round(scaled_resolution.y / resolution.y)
+    z_ratio = round(scaled_resolution.z / resolution.z)
+    zimg_reader = ZImg(
+        filenames=image_paths[z_start:z_end],
+        catDim=Dimension.Z,
+        catScenes=False,
+        xRatio=x_ratio,
+        yRatio=y_ratio,
+        zRatio=z_ratio,
+    )
+    image_data: ndarray = zimg_reader.data[0][0].transpose()
+    console.log(
+        f"SCALE{(x_ratio, y_ratio, z_ratio)}: read data in z range {(z_start, z_end)} in memory: {humanize_size(image_data.nbytes)}"
+    )
+    image_data = convert_image_data(image_data)
+    scale_metadata = convert_to_tensorstore_scale_metadata(scale)
+    output_store = open_tensorstore(
+        f"channel_0",
+        out_dir,
+        scale_metadata,
+        multiscale_metadata,
+    )
+    target_z_start, target_z_end = scale_size(z_start, z_ratio), scale_size(
+        z_end, z_ratio
+    )
+    for target_x_start, target_x_end in ranges(
+        0, image_data.shape[0], scaled_batch_size_x
+    ):
+        for target_y_start, target_y_end in ranges(
+            0, image_data.shape[1], scaled_batch_size_y
+        ):
+            output_store[
+                ts.d["x", "y", "z", "channel"][
+                target_x_start:target_x_end,
+                target_y_start:target_y_end,
+                target_z_start:target_z_end,
+                0,
+                ]
+            ] = image_data[target_x_start:target_x_end, target_y_start:target_y_end]
+            console.log(
+                f"SCALE{(x_ratio, y_ratio, z_ratio)}: write data from "
+                f"[{target_x_start}, {target_y_start}, {target_z_start}] to "
+                f"({target_x_end}, {target_y_end}, {target_z_end})"
             )
-            for target_x_start, target_x_end in ranges(
-                0, image_data.shape[0], scaled_batch_size_x
-            ):
-                for target_y_start, target_y_end in ranges(
-                    0, image_data.shape[1], scaled_batch_size_y
-                ):
-                    output_store[
-                        ts.d["x", "y", "z", "channel"][
-                            target_x_start:target_x_end,
-                            target_y_start:target_y_end,
-                            target_z_start:target_z_end,
-                            0,
-                        ]
-                    ] = image_data[
-                        target_x_start:target_x_end, target_y_start:target_y_end
-                    ]
-                    console.log(
-                        f"SCALE{(x_ratio, y_ratio, z_ratio)}: write data from "
-                        f"[{target_x_start}, {target_y_start}, {target_z_start}] to "
-                        f"({target_x_end}, {target_y_end}, {target_z_end})"
-                    )
+    finish_queue.put(True)
 
 
 def scale_size(origin: int, ratio: int) -> int:
