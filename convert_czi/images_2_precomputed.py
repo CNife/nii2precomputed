@@ -115,6 +115,8 @@ def convert_to_precomputed(
             # zimg有bug，无法正常结束进程，需要强制结束
             worker_process.terminate()
 
+    console.log("DONE, terminate this process")
+
 
 def read_convert_write(scale: dict[str, Any], z_start: int, z_end: int, image_paths: list[str],
                        multiscale_metadata: dict[str, Any], out_dir: Path, resolution: Resolution,
@@ -123,6 +125,7 @@ def read_convert_write(scale: dict[str, Any], z_start: int, z_end: int, image_pa
     x_ratio = round(scaled_resolution.x / resolution.x)
     y_ratio = round(scaled_resolution.y / resolution.y)
     z_ratio = round(scaled_resolution.z / resolution.z)
+
     zimg_reader = ZImg(
         filenames=image_paths[z_start:z_end],
         catDim=Dimension.Z,
