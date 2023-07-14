@@ -57,7 +57,9 @@ def convert_nii_to_precomputed(
 
 def read_image_info(image_path: PathLike | list[PathLike]) -> ZImgInfo:
     if isinstance(image_path, list):
-        image_infos = ZImg.readImgInfos(filenames=image_path, catDim=Dimension.Z, catScenes=False)
+        image_infos = ZImg.readImgInfos(
+            filenames=image_path, catDim=Dimension.Z, catScenes=False
+        )
     else:
         image_infos = ZImg.readImgInfos(filename=image_path)
     return image_infos[0]
@@ -181,7 +183,7 @@ def convert_image(
         ts_z_start = (offset + z_ratio - 1) // z_ratio
         ts_z_end = (offset + image_data.shape[0] + z_ratio - 1) // z_ratio
         output_store[ts.d["channel"][0]][
-            ts.d["z"][ts_z_start: ts_z_end]
+            ts.d["z"][ts_z_start:ts_z_end]
         ] = image_data.transpose()
 
 

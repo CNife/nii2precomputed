@@ -43,3 +43,8 @@ def humanize_size(size: int | float) -> str:
 def chunks(lst: list[T], chunk_size: int) -> Iterable[list[T]]:
     for i in range(0, len(lst), chunk_size):
         yield lst[i : i + chunk_size]
+
+
+def ranges(start: int, end: int, step: int) -> Iterable[tuple[int, int]]:
+    for i in range(start, end, step):
+        yield i, min(i + step, end)
