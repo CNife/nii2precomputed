@@ -121,6 +121,9 @@ def convert_to_precomputed(
 def read_convert_write(scale: dict[str, Any], z_start: int, z_end: int, image_paths: list[str],
                        multiscale_metadata: dict[str, Any], out_dir: Path, resolution: Resolution,
                        scaled_batch_size_x: int, scaled_batch_size_y: int, finish_queue) -> None:
+    with open(out_dir / 'current_working_z_range') as f:
+        f.write(f"{z_start=}, {z_end=}")
+
     scaled_resolution = Resolution(*scale["resolution"])
     x_ratio = round(scaled_resolution.x / resolution.x)
     y_ratio = round(scaled_resolution.y / resolution.y)
