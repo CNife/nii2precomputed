@@ -7,6 +7,7 @@ import numpy as np
 import tensorstore as ts
 import typer
 from numpy import ndarray
+from rich.console import Console
 from zimg import Dimension, ZImg
 
 from nii_2_precomputed import (
@@ -90,7 +91,7 @@ def convert_to_precomputed(
     for scale in info["scales"]:
         batch_size = scale["chunk_sizes"][0][2]
         z_ranges = [
-            (start_z + i * batch_size, min(end_z, batch_size * (i + 1)))
+            (start_z + batch_size * i, min(end_z, start_z + batch_size * (i + 1)))
             for i in range(scale_size(end_z, batch_size))
         ]
         for z_start, z_end in z_ranges:
@@ -121,6 +122,8 @@ def convert_to_precomputed(
 def read_convert_write(scale: dict[str, Any], z_start: int, z_end: int, image_paths: list[str],
                        multiscale_metadata: dict[str, Any], out_dir: Path, resolution: Resolution,
                        scaled_batch_size_x: int, scaled_batch_size_y: int, finish_queue) -> None:
+    this_console = Console()
+
     with open(out_dir / 'current_working_z_range', 'w') as f:
         f.write(f"{z_start=}, {z_end=}")
 
@@ -138,7 +141,7 @@ def read_convert_write(scale: dict[str, Any], z_start: int, z_end: int, image_pa
         zRatio=z_ratio,
     )
     image_data: ndarray = zimg_reader.data[0][0].transpose()
-    console.log(
+    this_console.log(
         f"SCALE{(x_ratio, y_ratio, z_ratio)}: read data in z range {(z_start, z_end)} in memory: {humanize_size(image_data.nbytes)}"
     )
     image_data = convert_image_data(image_data)
@@ -166,7 +169,7 @@ def read_convert_write(scale: dict[str, Any], z_start: int, z_end: int, image_pa
                 0,
                 ]
             ] = image_data[target_x_start:target_x_end, target_y_start:target_y_end]
-            console.log(
+            this_console.log(
                 f"SCALE{(x_ratio, y_ratio, z_ratio)}: write data from "
                 f"[{target_x_start}, {target_y_start}, {target_z_start}] to "
                 f"({target_x_end}, {target_y_end}, {target_z_end})"
