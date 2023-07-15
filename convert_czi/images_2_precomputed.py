@@ -27,6 +27,7 @@ def main(
     out_dir: Path,
     start_z: int = 0,
     end_z: int = -1,
+    start_scale_index: int = 0,
     write_batch_size_x: int = 5120,
     write_batch_size_y: int = 5120,
     url_path: str = "http://localhost:8080",
@@ -56,12 +57,19 @@ def main(
     )
     with open(out_dir / "full_resolutions_info.json", "w") as f:
         json.dump(info, f, indent=2)
+    multiscale_metadata = {
+        "data_type": info["data_type"],
+        "num_channels": info["num_channels"],
+        "type": info["type"],
+    }
+    scales = info["scales"][start_scale_index:]
 
     convert_to_precomputed(
         src_files,
         start_z,
         end_z,
-        info,
+        multiscale_metadata,
+        scales,
         out_dir,
         resolution,
         write_batch_size_x,
@@ -75,19 +83,14 @@ def convert_to_precomputed(
     image_paths: list[str],
     start_z: int,
     end_z: int,
-    info: dict[str, Any],
+    multiscale_metadata: dict[str, Any],
+    scales: list[dict[str, Any]],
     out_dir: Path,
     resolution: Resolution,
     scaled_batch_size_x: int,
     scaled_batch_size_y: int,
 ) -> None:
-    multiscale_metadata = {
-        "data_type": info["data_type"],
-        "num_channels": info["num_channels"],
-        "type": info["type"],
-    }
-
-    for scale in info["scales"]:
+    for scale in scales:
         scaled_resolution = Resolution(*scale["resolution"])
         x_ratio = round(scaled_resolution.x / resolution.x)
         y_ratio = round(scaled_resolution.y / resolution.y)
@@ -102,9 +105,12 @@ def convert_to_precomputed(
         )
 
         batch_size = scale["chunk_sizes"][0][2]
+        assert start_z % batch_size == 0
         z_ranges = [
-            (start_z + batch_size * i, min(end_z, start_z + batch_size * (i + 1)))
-            for i in range(scale_size(end_z, batch_size))
+            (batch_size * i, min(end_z, batch_size * (i + 1)))
+            for i in range(
+                start_z // batch_size, (end_z + batch_size - 1) // batch_size
+            )
         ]
         for z_start, z_end in z_ranges:
             with open(out_dir / "current_working_status.json", "w") as f:
@@ -126,9 +132,8 @@ def convert_to_precomputed(
             )
             image_data = convert_image_data(image_data)
 
-            target_z_start, target_z_end = scale_size(z_start, z_ratio), scale_size(
-                z_end, z_ratio
-            )
+            target_z_start = (z_start + z_ratio - 1) // z_ratio
+            target_z_end = (z_end + z_ratio - 1) // z_ratio
             for target_x_start, target_x_end in ranges(
                 0, image_data.shape[0], scaled_batch_size_x
             ):
@@ -150,10 +155,6 @@ def convert_to_precomputed(
                         f"[{target_x_start}, {target_y_start}, {target_z_start}] to "
                         f"({target_x_end}, {target_y_end}, {target_z_end})"
                     )
-
-
-def scale_size(origin: int, ratio: int) -> int:
-    return (origin + ratio - 1) // ratio
 
 
 if __name__ == "__main__":
