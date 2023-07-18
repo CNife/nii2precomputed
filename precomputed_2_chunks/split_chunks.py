@@ -1,5 +1,4 @@
 import itertools
-import math
 from typing import Iterable
 
 import typer
@@ -42,16 +41,6 @@ def main(
 def chunks(end: int, step: int) -> Iterable[tuple[int, int]]:
     for start in range(0, end, step):
         yield start, min(end, start + step)
-
-
-def calc_block_count(
-    x_max: int, y_max: int, z_max: int, block_size: int
-) -> tuple[int, int]:
-    x_count = math.ceil(x_max / block_size)
-    y_count = math.ceil(y_max / block_size)
-    z_count = math.ceil(z_max / block_size)
-    block_count = x_count * y_count * z_count
-    return block_count, len(str(block_count))
 
 
 if __name__ == "__main__":
