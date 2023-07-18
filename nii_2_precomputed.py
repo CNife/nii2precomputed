@@ -58,10 +58,10 @@ def convert_nii_to_precomputed(
 def read_image_info(image_path: PathLike | list[PathLike]) -> ZImgInfo:
     if isinstance(image_path, list):
         image_infos = ZImg.readImgInfos(
-            filenames=image_path, catDim=Dimension.Z, catScenes=False
+            [str(path) for path in image_path], Dimension.Z, False
         )
     else:
-        image_infos = ZImg.readImgInfos(filename=image_path)
+        image_infos = ZImg.readImgInfos(str(image_path))
     return image_infos[0]
 
 
@@ -143,7 +143,6 @@ def convert_image(
     full_resolution_info: dict[str, Any],
     out_folder: Path,
     resolution: Resolution,
-    offset: int = 0,
 ) -> None:
     multiscale_metadata = {
         "data_type": full_resolution_info["data_type"],
@@ -180,11 +179,7 @@ def convert_image(
             scale_metadata,
             multiscale_metadata,
         )
-        ts_z_start = (offset + z_ratio - 1) // z_ratio
-        ts_z_end = (offset + image_data.shape[0] + z_ratio - 1) // z_ratio
-        output_store[ts.d["channel"][0]][
-            ts.d["z"][ts_z_start:ts_z_end]
-        ] = image_data.transpose()
+        output_store[ts.d["channel"][0]] = image_data.transpose()
 
 
 def convert_to_tensorstore_scale_metadata(scale: dict[str, Any]) -> dict[str, Any]:

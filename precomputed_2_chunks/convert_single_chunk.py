@@ -28,10 +28,10 @@ def main(
 
     # 写入结果
     zimg_region_data = (
-        region_data.reshape((1,) + region_data.shape).transpose().copy(order="C")
+        region_data.transpose().copy(order="C")
     )
     result_zimg = ZImg(zimg_region_data)
-    result_name = f"{out_basename}-{x_start}_{x_end}-{y_start}_{y_end}-{z_start}_{z_end}.{out_file_type}"
+    result_name = f"{out_basename}_{x_start}-{x_end}_{y_start}-{y_end}_{z_start}-{z_end}.{out_file_type}"
     result_path = os.path.join(out_path, result_name)
     result_zimg.save(result_path)
 
