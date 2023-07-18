@@ -22,14 +22,12 @@ def main(
 
     # 读取指定区域数据
     region = ts.d["channel", "x", "y", "z"][
-             0, x_start:x_end, y_start:y_end, z_start:z_end
-             ]
+        :1, x_start:x_end, y_start:y_end, z_start:z_end
+    ]
     region_data = dataset[region].read().result()
 
     # 写入结果
-    zimg_region_data = (
-        region_data.transpose().copy(order="C")
-    )
+    zimg_region_data = region_data.transpose().copy(order="C")
     result_zimg = ZImg(zimg_region_data)
     result_name = f"{out_basename}_{x_start}-{x_end}_{y_start}-{y_end}_{z_start}-{z_end}.{out_file_type}"
     result_path = os.path.join(out_path, result_name)

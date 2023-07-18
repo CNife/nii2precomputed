@@ -2,10 +2,13 @@ import itertools
 from typing import Iterable
 
 import typer
+from rich.console import Console
 from rich.progress import track
 
 from precomputed_2_chunks import convert_single_chunk
 from precomputed_2_chunks.convert_single_chunk import open_tensorstore_to_read
+
+console = Console()
 
 
 def main(
@@ -17,14 +20,21 @@ def main(
     assert ts.shape[3] == 1
     x_max, y_max, z_max = ts.shape[:3]
 
-    block_ranges = list(itertools.product(
-        chunks(x_max, block_size), chunks(y_max, block_size), chunks(z_max, block_size)
-    ))
+    block_ranges = list(
+        itertools.product(
+            chunks(x_max, block_size),
+            chunks(y_max, block_size),
+            chunks(z_max, block_size),
+        )
+    )
     for index, ranges in track(
-        enumerate(block_ranges), description="Converting", total=len(block_ranges)
+        enumerate(block_ranges),
+        description="Converting",
+        total=len(block_ranges),
+        console=console,
     ):
         x_range, y_range, z_range = ranges
-        convert_single_chunk.main(
+        filename = convert_single_chunk.main(
             src_url,
             out_path,
             str(index).zfill(len(str(len(block_ranges)))),
@@ -36,6 +46,7 @@ def main(
             z_start=z_range[0],
             z_end=z_range[1],
         )
+        console.log(f"DONE {filename}")
 
 
 def chunks(end: int, step: int) -> Iterable[tuple[int, int]]:
