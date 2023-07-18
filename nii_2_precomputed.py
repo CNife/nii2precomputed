@@ -236,7 +236,7 @@ unit_scales = {
 
 
 def get_resolution(image_info: ZImgInfo) -> Resolution:
-    scale = unit_scales[image_info.voxelSizeUnit]
+    scale = unit_scales.get(image_info.voxelSizeUnit, 1000)
     return Resolution(
         x=image_info.voxelSizeX * scale,
         y=image_info.voxelSizeY * scale,
