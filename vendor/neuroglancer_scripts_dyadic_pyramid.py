@@ -99,10 +99,8 @@ def fill_scales_for_dyadic_pyramid(info, target_chunk_size=64, max_scales=None):
         base_chunk_exponent = target_chunk_exponent - (sum_anisotropy_factors + 1) // 3
         assert base_chunk_exponent >= 0
         scale_info["chunk_sizes"] = [
-            [
-                2 ** (base_chunk_exponent + anisotropy_factor)
-                for anisotropy_factor in anisotropy_factors
-            ]
+            2 ** (base_chunk_exponent + anisotropy_factor)
+            for anisotropy_factor in anisotropy_factors
         ]
 
         assert (
