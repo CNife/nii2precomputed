@@ -75,7 +75,7 @@ def fill_scales_for_dyadic_pyramid(info, target_chunk_size=64, max_scales=None):
             for sz, axis_factor in zip(full_scale_info["size"], factors)
         ]
         # Key is the resolution in micrometres
-        scale_info["key"] = format_length(min(scale_info["resolution"]), key_unit)
+        # scale_info["key"] = format_length(min(scale_info["resolution"]), key_unit)
 
         max_delay = max(axis_level_delays)
         anisotropy_factors = [

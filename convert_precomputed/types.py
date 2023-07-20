@@ -20,10 +20,21 @@ class ImageSize:
 
 
 @dataclass
-class ResolutionRatio:
-    x: int
-    y: int
-    z: int
+class ResolutionRatio(ImageSize):
+    pass
+
+
+@dataclass
+class DimensionRange:
+    start: int
+    end: int
+
+
+@dataclass
+class ImageRegion:
+    x: DimensionRange
+    y: DimensionRange
+    z: DimensionRange
 
 
 JsonString: TypeAlias = str
@@ -35,3 +46,5 @@ JsonObject: TypeAlias = dict[JsonString, "Json"]
 Json: TypeAlias = (
     JsonString | JsonNumber | JsonNull | JsonBoolean | JsonArray | JsonObject
 )
+
+TsScaleMetadata: TypeAlias = JsonObject
