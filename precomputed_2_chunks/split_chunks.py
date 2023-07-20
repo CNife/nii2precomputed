@@ -39,6 +39,7 @@ def main(
             out_path,
             str(index).zfill(len(str(len(block_ranges)))),
             out_file_type,
+            block_size,
             x_start=x_range[0],
             x_end=x_range[1],
             y_start=y_range[0],
