@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import typer
-
 from nii_2_precomputed import Resolution, convert_nii_to_precomputed
 
 

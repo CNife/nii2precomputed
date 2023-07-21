@@ -9,7 +9,7 @@ import typer
 from rich.console import Console
 from zimg import ZImg, ZImgInfo, ZImgRegion, ZVoxelCoordinate
 
-from util import dbg_args
+from old_scripts.nii_2_precomputed.util import dbg_args
 
 
 def convert_czi_2_single_image(image_path: str, out_dir: str, z: int) -> str:

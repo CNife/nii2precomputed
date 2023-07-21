@@ -10,7 +10,7 @@ from skimage.transform import downscale_local_mean, resize
 from skimage.util import img_as_float, img_as_ubyte, img_as_uint
 from zimg import ZImg, ZImgInfo
 
-from nii_2_precomputed import (
+from old_scripts.nii_2_precomputed.nii_2_precomputed import (
     ImageSize,
     Resolution,
     build_and_write_base_json,
@@ -20,7 +20,7 @@ from nii_2_precomputed import (
     open_tensorstore,
     read_image_info,
 )
-from util import console, dbg, humanize_size
+from old_scripts.nii_2_precomputed.util import console, dbg, humanize_size
 
 
 def compute_new_size(image_info: ZImgInfo, target_y: int) -> tuple[ImageSize, int]:

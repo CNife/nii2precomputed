@@ -13,9 +13,7 @@ from convert_precomputed.io_utils import (
     list_dir,
     stdout_redirected,
 )
-from convert_precomputed.neuroglancer_utils import (
-    build_ng_base_json,
-)
+from convert_precomputed.neuroglancer_utils import build_ng_base_json
 from convert_precomputed.rich_utils import print_args
 from convert_precomputed.tensorstore_utils import (
     build_multiscale_metadata,

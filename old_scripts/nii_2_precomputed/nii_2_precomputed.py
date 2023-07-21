@@ -7,9 +7,9 @@ from typing import Any, TypeAlias
 import numpy as np
 import tensorstore as ts
 from numpy import ndarray
+from util import dbg
 from zimg import Dimension, VoxelSizeUnit, ZImg, ZImgInfo, col4
 
-from util import dbg
 from vendor.neuroglancer_scripts_dyadic_pyramid import fill_scales_for_dyadic_pyramid
 
 Resolution = namedtuple("Resolution", ["x", "y", "z"])
