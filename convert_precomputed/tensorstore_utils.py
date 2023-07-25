@@ -1,3 +1,4 @@
+import math
 from dataclasses import astuple
 from pathlib import Path
 
@@ -34,7 +35,13 @@ def build_scales_dyadic_pyramid(
         "size": list(astuple(size)),
     }
     info_dict = {"scales": [init_scale_info]}
-    fill_scales_for_dyadic_pyramid(info_dict, target_chunk_size=64)
+
+    target_chunk_size = 64
+    assert math.log2(target_chunk_size).is_integer()
+    max_scales = round(math.log2(target_chunk_size)) + 1
+    fill_scales_for_dyadic_pyramid(
+        info_dict, target_chunk_size=target_chunk_size, max_scales=max_scales
+    )
     return info_dict["scales"]
 
 
@@ -63,6 +70,7 @@ def open_tensorstore_to_write(
     scale: TsScaleMetadata,
     multi_scale_metadata: JsonObject,
 ) -> ts.TensorStore:
+    del scale["chunk_sizes"]
     spec = {
         "driver": "neuroglancer_precomputed",
         "kvstore": {

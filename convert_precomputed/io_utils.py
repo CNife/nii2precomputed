@@ -1,10 +1,7 @@
 import json
-import os
-import sys
-from contextlib import contextmanager
 from pathlib import Path
 
-from convert_precomputed.config import DEFAULT_BASE_PATH
+from convert_precomputed.config import BASE_PATH
 from convert_precomputed.types import Json, OsPath
 
 
@@ -19,7 +16,7 @@ def list_dir(path: Path) -> list[Path]:
     return files
 
 
-def check_output_directory(path: Path, base_path: Path = DEFAULT_BASE_PATH) -> str:
+def check_output_directory(path: Path, base_path: Path = BASE_PATH) -> str:
     if not path.exists():
         path.mkdir(parents=True, exist_ok=True)
     elif not path.is_dir():
@@ -28,21 +25,3 @@ def check_output_directory(path: Path, base_path: Path = DEFAULT_BASE_PATH) -> s
         return str(path.relative_to(base_path))
     except ValueError as e:
         raise ValueError(f"{path} is not subdirectory of {base_path}") from e
-
-
-@contextmanager
-def stdout_redirected(to=os.devnull):
-    fd = sys.stdout.fileno()
-
-    def _redirect_stdout(_to):
-        sys.stdout.close()
-        os.dup2(_to.fileno(), fd)
-        sys.stdout = os.fdopen(fd, "w")
-
-    with os.fdopen(os.dup(fd), "w") as old_stdout:
-        with open(to, "w") as file:
-            _redirect_stdout(file)
-        try:
-            yield
-        finally:
-            _redirect_stdout(old_stdout)

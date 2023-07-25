@@ -3,7 +3,7 @@ from dataclasses import astuple
 import numpy as np
 from zimg import col4
 
-from convert_precomputed.config import DEFAULT_URL
+from convert_precomputed.config import URL
 from convert_precomputed.types import ImageResolution, ImageSize, JsonObject
 
 
@@ -26,7 +26,7 @@ def build_ng_base_json(
             {
                 "type": "image",
                 "name": f"channel_{channel}",
-                "source": f"precomputed://{DEFAULT_URL}/{url_path}/channel_{channel}",
+                "source": f"precomputed://{URL}/{url_path}/channel_{channel}",
                 "opacity": 1,
                 "blend": "additive",
                 "shaderControls": {

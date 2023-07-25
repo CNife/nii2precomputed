@@ -105,9 +105,7 @@ def fill_scales_for_dyadic_pyramid(info, target_chunk_size=64, max_scales=None):
 
         assert (
             abs(
-                sum(
-                    int(round(math.log2(size))) for size in scale_info["chunk_sizes"][0]
-                )
+                sum(int(round(math.log2(size))) for size in scale_info["chunk_sizes"])
                 - 3 * target_chunk_exponent
             )
             <= 1
