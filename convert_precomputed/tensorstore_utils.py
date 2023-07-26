@@ -70,7 +70,7 @@ def open_tensorstore_to_write(
     scale: TsScaleMetadata,
     multi_scale_metadata: JsonObject,
 ) -> ts.TensorStore:
-    del scale["chunk_sizes"]
+    scale_metadata = {k: v for k, v in scale.items() if k != 'chunk_sizes'}
     spec = {
         "driver": "neuroglancer_precomputed",
         "kvstore": {
@@ -78,7 +78,7 @@ def open_tensorstore_to_write(
             "path": str(output_directory),
         },
         "path": channel_name,
-        "scale_metadata": scale,
+        "scale_metadata": scale_metadata,
         "multiscale_metadata": multi_scale_metadata,
         "open": True,
         "create": True,
