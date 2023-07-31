@@ -70,7 +70,7 @@ def open_tensorstore_to_write(
     scale: TsScaleMetadata,
     multi_scale_metadata: JsonObject,
 ) -> ts.TensorStore:
-    scale_metadata = {k: v for k, v in scale.items() if k != 'chunk_sizes'}
+    scale_metadata = {k: v for k, v in scale.items() if k != "chunk_sizes"}
     spec = {
         "driver": "neuroglancer_precomputed",
         "kvstore": {

@@ -5,6 +5,13 @@ from typing import Iterable, Optional
 
 from loguru import logger
 
+LOG_FORMAT = (
+    "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green>|"
+    "<level>{level: <8}</level>|"
+    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan>|"
+    "<level>{message}</level>"
+)
+
 
 @contextmanager
 def log_time_usage(description: str) -> Iterable[None]:
@@ -14,13 +21,19 @@ def log_time_usage(description: str) -> Iterable[None]:
     finally:
         time_diff_ns = time.perf_counter_ns() - start_time
         used_time = timedelta(microseconds=time_diff_ns / 1000)
-        logger.info(f"{description} used {str(used_time)}")
+        logger.info(f"[used {str(used_time)}] {description}")
 
 
 class ChainedIndexProgress:
-    def __init__(self, parent: Optional['ChainedIndexProgress'], name: str, description: str = "", count: int = 1):
-        self.parent: Optional['ChainedIndexProgress'] = parent
-        self.children: list['ChainedIndexProgress'] = []
+    def __init__(
+        self,
+        parent: Optional["ChainedIndexProgress"],
+        name: str,
+        description: str = "",
+        count: int = 1,
+    ):
+        self.parent: Optional["ChainedIndexProgress"] = parent
+        self.children: list["ChainedIndexProgress"] = []
         self.name: str = name
         self.description: str = description
         self.index: int = 0
@@ -35,7 +48,7 @@ class ChainedIndexProgress:
             child.index = 0
 
     def __str__(self):
-        description_str = f" {self.description}" if self.description else ''
+        description_str = f" {self.description}" if self.description else ""
         self_str = f"[{self.name} {self.index}/{self.count}{description_str}]"
         if self.parent is None:
             return self_str

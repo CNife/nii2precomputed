@@ -23,6 +23,6 @@ def check_output_directory(path: Path, base_path: Path = BASE_PATH) -> str:
         raise ValueError(f"{path} is not directory")
     try:
         relative_path = path.relative_to(base_path)
-        return '/'.join(relative_path.parts)
+        return "/".join(relative_path.parts)
     except ValueError as e:
         raise ValueError(f"{path} is not subdirectory of {base_path}") from e

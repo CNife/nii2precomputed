@@ -10,7 +10,11 @@ from numpy import ndarray
 from typer import Argument, Option, Typer
 
 from convert_precomputed.io_utils import check_output_directory, dump_json, list_dir
-from convert_precomputed.log_utils import ChainedIndexProgress, log_time_usage
+from convert_precomputed.log_utils import (
+    LOG_FORMAT,
+    ChainedIndexProgress,
+    log_time_usage,
+)
 from convert_precomputed.neuroglancer_utils import build_ng_base_json
 from convert_precomputed.rich_utils import print_args
 from convert_precomputed.tensorstore_utils import (
@@ -51,8 +55,10 @@ def single_image(
         help="Block size when writing precomputed", default=512
     ),
 ) -> None:
-    logger.info(f"Converting single image to precomputed: image_path={str(image_path)}, "
-                f"output_directory={str(output_directory)}, {resolution=}, {z_range=}, {write_block_size=}")
+    logger.info(
+        f"Converting single image to precomputed: image_path={str(image_path)}, "
+        f"output_directory={str(output_directory)}, {resolution=}, {z_range=}, {write_block_size=}"
+    )
     image_2_precomputed(
         image_path, output_directory, resolution, z_range, write_block_size
     )
@@ -76,8 +82,10 @@ def multiple_images(
         help="Block size when writing precomputed", default=512
     ),
 ) -> None:
-    logger.info(f"Converting multiple images to precomputed: images_directory={str(images_directory)}, "
-                f"output_directory={str(output_directory)}, {resolution=}, {z_range=}, {write_block_size=}")
+    logger.info(
+        f"Converting multiple images to precomputed: images_directory={str(images_directory)}, "
+        f"output_directory={str(output_directory)}, {resolution=}, {z_range=}, {write_block_size=}"
+    )
     image_2_precomputed(
         list_dir(images_directory),
         output_directory,
@@ -109,6 +117,9 @@ def image_2_precomputed(
     z_range: tuple[int, int],
     write_block_size: int,
 ) -> None:
+    log_path = output_directory / "convert_precomputed.log"
+    logger.add(log_path, format=LOG_FORMAT)
+
     url_path = check_output_directory(output_directory)
     logger.info(f"{url_path=}")
 
@@ -148,7 +159,7 @@ def image_2_precomputed(
             DimensionRange(z_start, z_end),
             write_block_size,
             scale,
-            multi_scale_metadata
+            multi_scale_metadata,
         )
 
 
@@ -220,23 +231,29 @@ def write_tensorstore(
         channel_name, output_directory, scale, multi_scale_metadata
     )
 
-    xy_ranges = list(itertools.product(calc_ranges(0, channel_data.shape[0], write_block_size),
-                                       calc_ranges(0, channel_data.shape[1], write_block_size)))
+    xy_ranges = list(
+        itertools.product(
+            calc_ranges(0, channel_data.shape[0], write_block_size),
+            calc_ranges(0, channel_data.shape[1], write_block_size),
+        )
+    )
     xy_range_progress.count = len(xy_ranges)
     for x_range, y_range in xy_ranges:
         xy_range_progress.next()
-        xy_range_progress.description = f"({x_range.start},{y_range.start})-({x_range.end},{y_range.end})"
+        xy_range_progress.description = (
+            f"({x_range.start},{y_range.start})-({x_range.end},{y_range.end})"
+        )
         write_range = ts.d["channel", "x", "y", "z"][
-                      channel_index,
-                      x_range.start: x_range.end,
-                      y_range.start: y_range.end,
-                      write_z_range.start: write_z_range.end,
-                      ]
+            channel_index,
+            x_range.start : x_range.end,
+            y_range.start : y_range.end,
+            write_z_range.start : write_z_range.end,
+        ]
         with log_time_usage(f"{xy_range_progress} write data"):
             ts_writer[write_range] = channel_data[
-                                     x_range.start: x_range.end,
-                                     y_range.start: y_range.end,
-                                     ]
+                x_range.start : x_range.end,
+                y_range.start : y_range.end,
+            ]
 
 
 def calc_ranges(start: int, end: int, step: int) -> list[DimensionRange]:
@@ -257,11 +274,10 @@ def convert_image_data(data: ndarray) -> ndarray:
 @logger.catch
 def main():
     logger.remove()
-    logger.add(sys.stderr,
-               format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green>|"
-                      "<level>{level: <8}</level>|"
-                      "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan>|"
-                      "<level>{message}</level>")
+    logger.add(
+        sys.stderr,
+        format=LOG_FORMAT,
+    )
     app()
 
 
