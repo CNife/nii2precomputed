@@ -29,7 +29,7 @@ def main(
     region_data = dataset[region].read().result()
 
     # 填充到指定block_size大小
-    target_shape = (1,) + (block_size,) * 3
+    target_shape = (block_size,) * 3 + (1,)
     zimg_region_data = np.zeros(target_shape, dtype=region_data.dtype, order="C")
     zimg_region_data[
         : region_data.shape[3],

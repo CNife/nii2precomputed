@@ -75,7 +75,7 @@ def fill_scales_for_dyadic_pyramid(info, target_chunk_size=64, max_scales=None):
             for sz, axis_factor in zip(full_scale_info["size"], factors)
         ]
         # Key is the resolution in micrometres
-        scale_info["key"] = format_length(min(scale_info["resolution"]), key_unit)
+        # scale_info["key"] = format_length(min(scale_info["resolution"]), key_unit)
 
         max_delay = max(axis_level_delays)
         anisotropy_factors = [
@@ -99,17 +99,13 @@ def fill_scales_for_dyadic_pyramid(info, target_chunk_size=64, max_scales=None):
         base_chunk_exponent = target_chunk_exponent - (sum_anisotropy_factors + 1) // 3
         assert base_chunk_exponent >= 0
         scale_info["chunk_sizes"] = [
-            [
-                2 ** (base_chunk_exponent + anisotropy_factor)
-                for anisotropy_factor in anisotropy_factors
-            ]
+            2 ** (base_chunk_exponent + anisotropy_factor)
+            for anisotropy_factor in anisotropy_factors
         ]
 
         assert (
             abs(
-                sum(
-                    int(round(math.log2(size))) for size in scale_info["chunk_sizes"][0]
-                )
+                sum(int(round(math.log2(size))) for size in scale_info["chunk_sizes"])
                 - 3 * target_chunk_exponent
             )
             <= 1

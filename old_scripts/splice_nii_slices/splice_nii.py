@@ -13,8 +13,8 @@ from numpy import dtype, ndarray
 from rich.progress import track
 from zimg import ZImg, ZImgInfo
 
-from custom_scale.custom_scale import write_tensorstore
-from nii_2_precomputed import (
+from old_scripts.custom_scale.custom_scale import write_tensorstore
+from old_scripts.nii_2_precomputed.nii_2_precomputed import (
     Color,
     ImageSize,
     Resolution,
@@ -24,7 +24,7 @@ from nii_2_precomputed import (
     convert_image_data,
     read_image_info,
 )
-from util import console, dbg, dbg_args
+from old_scripts.nii_2_precomputed.util import console, dbg, dbg_args
 
 
 def main(

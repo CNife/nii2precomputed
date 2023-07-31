@@ -7,9 +7,9 @@ from typing import Any, TypeAlias
 import numpy as np
 import tensorstore as ts
 from numpy import ndarray
+from util import dbg
 from zimg import Dimension, VoxelSizeUnit, ZImg, ZImgInfo, col4
 
-from util import dbg
 from vendor.neuroglancer_scripts_dyadic_pyramid import fill_scales_for_dyadic_pyramid
 
 Resolution = namedtuple("Resolution", ["x", "y", "z"])
@@ -113,7 +113,7 @@ def build_and_write_base_json(
         "layers": [],
     }
     if data_type.kind == "f":
-        image_data_range = [0, 0, 1.0]
+        image_data_range = [0, 1.0]
     else:
         image_data_range = [0, np.iinfo(data_type).max]
     for channel_index, channel_color in enumerate(channel_colors):

@@ -8,7 +8,7 @@ import typer
 from numpy import ndarray
 from zimg import Dimension, ZImg
 
-from nii_2_precomputed import (
+from old_scripts.nii_2_precomputed.nii_2_precomputed import (
     Resolution,
     build_and_write_base_json,
     build_full_resolution_info,
@@ -19,7 +19,7 @@ from nii_2_precomputed import (
     open_tensorstore,
     read_image_info,
 )
-from util import console, dbg_args, humanize_size, ranges
+from old_scripts.nii_2_precomputed.util import console, dbg_args, humanize_size, ranges
 
 
 def main(
