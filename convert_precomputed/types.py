@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypeAlias
+from typing import TypeAlias, TypeVar
+
+T: TypeVar = TypeVar("T")
 
 OsPath: TypeAlias = Path | str
 
@@ -43,8 +45,6 @@ JsonNull: TypeAlias = type(None)
 JsonBoolean: TypeAlias = bool
 JsonArray: TypeAlias = list["Json"]
 JsonObject: TypeAlias = dict[JsonString, "Json"]
-Json: TypeAlias = (
-    JsonString | JsonNumber | JsonNull | JsonBoolean | JsonArray | JsonObject
-)
+Json: TypeAlias = JsonString | JsonNumber | JsonNull | JsonBoolean | JsonArray | JsonObject
 
 TsScaleMetadata: TypeAlias = JsonObject
