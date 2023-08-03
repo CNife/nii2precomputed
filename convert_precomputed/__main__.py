@@ -1,9 +1,12 @@
 import itertools
-import json
 import os
 import sys
+import time
+from contextlib import contextmanager
 from dataclasses import astuple
+from datetime import timedelta
 from pathlib import Path
+from typing import Iterable
 
 import numpy as np
 import tensorstore as ts
@@ -12,8 +15,8 @@ from numpy import ndarray
 from typer import Argument, Option, Typer
 from zimg import col4
 
+from convert_precomputed.chained_progress import ChainedProgress
 from convert_precomputed.io_utils import check_output_directory, dump_json, list_dir
-from convert_precomputed.log_utils import ChainedIndexProgress, LOG_FORMAT, log_time_usage
 from convert_precomputed.tensorstore_utils import (
     build_multiscale_metadata,
     build_scales_dyadic_pyramid,
@@ -40,6 +43,13 @@ URL: str = str(os.environ.get("URL", "http://10.11.40.170:2000"))
 BASE_PATH: Path = Path(os.environ.get("BASE_PATH", "/zjbs-data/share"))
 
 app = Typer(help="Convert images into Neuroglancer precomputed data")
+
+LOG_FORMAT = (
+    "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green>|"
+    "<level>{level: <8}</level>|"
+    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan>|"
+    "<level>{message}</level>"
+)
 
 
 @app.command(help="Convert single image to precomputed")
@@ -88,12 +98,6 @@ def show_image_info(path: Path = Argument(exists=True, show_default=False)) -> N
     logger.info(f"{image_info=}")
 
 
-scale_progress = ChainedIndexProgress(None, "scale")
-z_range_progress = ChainedIndexProgress(scale_progress, "z_range")
-channel_progress = ChainedIndexProgress(z_range_progress, "channel")
-xy_range_progress = ChainedIndexProgress(channel_progress, "xy_range")
-
-
 def image_2_precomputed(
     image_path: Path | list[Path],
     output_directory: Path,
@@ -105,8 +109,7 @@ def image_2_precomputed(
     output_directory.mkdir(parents=True, exist_ok=True)
     log_path = output_directory / "convert_precomputed.log"
     logger.add(log_path, format=LOG_FORMAT)
-    if resume:
-        load_work_progress(output_directory)
+    scale_progress = load_work_progress(resume, output_directory)
 
     url_path = check_output_directory(output_directory, BASE_PATH)
     logger.info(f"{url_path=}")
@@ -135,7 +138,7 @@ def image_2_precomputed(
     scales = build_scales_dyadic_pyramid(resolution, size)
     logger.info(f"{scales=}")
     multi_scale_metadata = build_multiscale_metadata(data_type, image_info.numChannels)
-    for scale in scale_progress.bind_list(scales):
+    for scale in scale_progress.bind(scales):
         convert_data(
             image_path,
             output_directory,
@@ -144,7 +147,9 @@ def image_2_precomputed(
             write_block_size,
             scale,
             multi_scale_metadata,
+            scale_progress,
         )
+    logger.info("DONE")
 
 
 def build_ng_base_json(
@@ -185,12 +190,14 @@ def convert_data(
     write_block_size: int,
     scale: TsScaleMetadata,
     multi_scale_metadata: JsonObject,
+    scale_progress: ChainedProgress,
 ):
     ratio = scale_resolution_ratio(scale, resolution)
     read_z_size = scale["chunk_sizes"][2]
     assert z_range.start % read_z_size == 0
     read_z_ranges = calc_ranges(z_range.start, z_range.end, read_z_size)
-    for read_z_range in z_range_progress.bind_list(read_z_ranges, lambda zr: f"{zr.start}-{zr.end}"):
+    z_range_progress = scale_progress.get_or_add("z_range")
+    for read_z_range in z_range_progress.bind(read_z_ranges, lambda zr: f"{zr.start}-{zr.end}"):
         read_z_start, read_z_end = astuple(read_z_range)
 
         with log_time_usage(f"{z_range_progress} read image data"):
@@ -203,7 +210,8 @@ def convert_data(
             )
         image_data = convert_image_data(image_data)
 
-        for channel_index, channel_data in channel_progress.bind_list(list(enumerate(image_data))):
+        channel_progress = z_range_progress.get_or_add("channel")
+        for channel_index, channel_data in channel_progress.bind(list(enumerate(image_data))):
             write_tensorstore(
                 channel_index,
                 channel_data,
@@ -212,6 +220,7 @@ def convert_data(
                 output_directory,
                 scale,
                 multi_scale_metadata,
+                channel_progress,
             )
 
 
@@ -223,12 +232,14 @@ def write_tensorstore(
     output_directory: Path,
     scale: TsScaleMetadata,
     multi_scale_metadata: JsonObject,
+    channel_progress: ChainedProgress,
 ):
     channel_name = f"channel_{channel_index}"
     channel_data = channel_data.transpose()
     ts_writer = open_tensorstore_to_write(channel_name, output_directory, scale, multi_scale_metadata)
 
-    for x_range, y_range in xy_range_progress.bind_list(
+    xy_range_progress = channel_progress.get_or_add("xy_range")
+    for x_range, y_range in xy_range_progress.bind(
         list(
             itertools.product(
                 calc_ranges(0, channel_data.shape[0], write_block_size),
@@ -243,22 +254,15 @@ def write_tensorstore(
             y_range.start : y_range.end,
             write_z_range.start : write_z_range.end,
         ]
-        dump_json(scale_progress.to_dict(), output_directory / "work_status.json")
+        xy_range_progress.save(output_directory / "work_status.json")
         with log_time_usage(f"{xy_range_progress} write data"):
             ts_writer[write_range] = channel_data[x_range.start : x_range.end, y_range.start : y_range.end]
 
 
-def load_work_progress(output_directory: Path) -> None:
-    work_status_path = output_directory / "work_status.json"
-    if not work_status_path.exists():
-        return
-    global scale_progress, z_range_progress, channel_progress, xy_range_progress
-    with open(work_status_path, "r") as f:
-        status_dict = json.load(f)
-        scale_progress = ChainedIndexProgress.from_dict(status_dict)
-        z_range_progress = scale_progress.children[0]
-        channel_progress = z_range_progress.children[0]
-        xy_range_progress = channel_progress.children[0]
+def load_work_progress(resume: bool, output_directory: Path) -> ChainedProgress:
+    if resume and (work_status_path := output_directory / "work_status.json").exists():
+        return ChainedProgress.load(work_status_path)
+    return ChainedProgress("scale", None)
 
 
 def calc_ranges(start: int, end: int, step: int) -> list[DimensionRange]:
@@ -271,6 +275,17 @@ def convert_image_data(data: ndarray) -> ndarray:
     data_max, data_min = np.max(data), np.min(data)
     normalized_data = (data - data_min) / (data_max - data_min)
     return normalized_data.astype(np.float32)
+
+
+@contextmanager
+def log_time_usage(description: str) -> Iterable[None]:
+    start_time = time.perf_counter_ns()
+    try:
+        yield
+    finally:
+        time_diff_ns = time.perf_counter_ns() - start_time
+        used_time = timedelta(microseconds=time_diff_ns / 1000)
+        logger.info(f"[used {str(used_time)}] {description}")
 
 
 @logger.catch
