@@ -4,24 +4,14 @@ import numpy as np
 from numpy import ndarray
 from zimg import Dimension, VoxelSizeUnit, ZImg, ZImgInfo, ZImgRegion, ZVoxelCoordinate
 
-from convert_precomputed.types import (
-    ImageRegion,
-    ImageResolution,
-    ImageSize,
-    OsPath,
-    ResolutionRatio,
-)
+from convert_to_precomputed.types import ImageRegion, ImageResolution, ImageSize, OsPath, ResolutionRatio
 
 
 # noinspection PyTypeChecker
 def read_image_info(image_path: OsPath | Iterable[OsPath]) -> ZImgInfo:
     if isinstance(image_path, Iterable):
         image_paths = [str(path) for path in image_path]
-        image_infos = ZImg.readImgInfos(
-            image_paths,
-            catDim=Dimension.Z,
-            catScenes=True,
-        )
+        image_infos = ZImg.readImgInfos(image_paths, catDim=Dimension.Z, catScenes=True)
     else:
         image_infos = ZImg.readImgInfos(str(image_path))
     result: ZImgInfo = image_infos[0]
@@ -35,9 +25,7 @@ def get_image_size(image_info: ZImgInfo) -> ImageSize:
 def get_image_resolution(image_info: ZImgInfo) -> ImageResolution:
     scale = _unit_scale(image_info.voxelSizeUnit)
     return ImageResolution(
-        x=image_info.voxelSizeX * scale,
-        y=image_info.voxelSizeY * scale,
-        z=image_info.voxelSizeZ * scale,
+        x=image_info.voxelSizeX * scale, y=image_info.voxelSizeY * scale, z=image_info.voxelSizeZ * scale
     )
 
 
@@ -57,11 +45,7 @@ def get_image_dtype(image_info: ZImgInfo) -> np.dtype:
     return np.dtype(image_info.dataTypeString())
 
 
-def read_image_data(
-    image_path: OsPath | Iterable[OsPath],
-    region: ImageRegion,
-    ratio: ResolutionRatio,
-) -> ndarray:
+def read_image_data(image_path: OsPath | Iterable[OsPath], region: ImageRegion, ratio: ResolutionRatio) -> ndarray:
     zimg_region = _region_2_zimg(region)
     zimg_ratio_dict = _ratio_2_dict(ratio)
     if isinstance(image_path, Iterable):
@@ -86,8 +70,4 @@ def _region_2_zimg(region: ImageRegion) -> ZImgRegion:
 
 
 def _ratio_2_dict(ratio: ResolutionRatio) -> dict[str, float]:
-    return {
-        "xRatio": ratio.x,
-        "yRatio": ratio.y,
-        "zRatio": ratio.z,
-    }
+    return {"xRatio": ratio.x, "yRatio": ratio.y, "zRatio": ratio.z}

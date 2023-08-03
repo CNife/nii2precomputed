@@ -15,15 +15,15 @@ from numpy import ndarray
 from typer import Argument, Option, Typer
 from zimg import col4
 
-from convert_precomputed.chained_progress import ChainedProgress
-from convert_precomputed.io_utils import check_output_directory, dump_json, list_dir
-from convert_precomputed.tensorstore_utils import (
+from convert_to_precomputed.chained_progress import ChainedProgress
+from convert_to_precomputed.io_utils import check_output_directory, dump_json, list_dir
+from convert_to_precomputed.tensorstore_utils import (
     build_multiscale_metadata,
     build_scales_dyadic_pyramid,
     open_tensorstore_to_write,
     scale_resolution_ratio,
 )
-from convert_precomputed.types import (
+from convert_to_precomputed.types import (
     DimensionRange,
     ImageRegion,
     ImageResolution,
@@ -31,7 +31,7 @@ from convert_precomputed.types import (
     JsonObject,
     TsScaleMetadata,
 )
-from convert_precomputed.zimg_utils import (
+from convert_to_precomputed.zimg_utils import (
     get_image_dtype,
     get_image_resolution,
     get_image_size,
@@ -92,7 +92,7 @@ def image_2_precomputed(
     resume: bool,
 ) -> None:
     output_directory.mkdir(parents=True, exist_ok=True)
-    log_path = output_directory / "convert_precomputed.log"
+    log_path = output_directory / "convert_to_precomputed.log"
     logger.add(log_path, format=LOG_FORMAT)
     scale_progress = load_work_progress(resume, output_directory)
 
