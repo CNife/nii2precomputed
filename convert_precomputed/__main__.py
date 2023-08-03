@@ -1,5 +1,6 @@
 import itertools
 import json
+import os
 import sys
 from dataclasses import astuple
 from pathlib import Path
@@ -9,18 +10,24 @@ import tensorstore as ts
 from loguru import logger
 from numpy import ndarray
 from typer import Argument, Option, Typer
+from zimg import col4
 
 from convert_precomputed.io_utils import check_output_directory, dump_json, list_dir
-from convert_precomputed.log_utils import LOG_FORMAT, ChainedIndexProgress, log_time_usage
-from convert_precomputed.neuroglancer_utils import build_ng_base_json
-from convert_precomputed.rich_utils import print_args
+from convert_precomputed.log_utils import ChainedIndexProgress, LOG_FORMAT, log_time_usage
 from convert_precomputed.tensorstore_utils import (
     build_multiscale_metadata,
     build_scales_dyadic_pyramid,
     open_tensorstore_to_write,
     scale_resolution_ratio,
 )
-from convert_precomputed.types import DimensionRange, ImageRegion, ImageResolution, JsonObject, TsScaleMetadata
+from convert_precomputed.types import (
+    DimensionRange,
+    ImageRegion,
+    ImageResolution,
+    ImageSize,
+    JsonObject,
+    TsScaleMetadata,
+)
 from convert_precomputed.zimg_utils import (
     get_image_dtype,
     get_image_resolution,
@@ -28,6 +35,9 @@ from convert_precomputed.zimg_utils import (
     read_image_data,
     read_image_info,
 )
+
+URL: str = str(os.environ.get("URL", "http://10.11.40.170:2000"))
+BASE_PATH: Path = Path(os.environ.get("BASE_PATH", "/zjbs-data/share"))
 
 app = Typer(help="Convert images into Neuroglancer precomputed data")
 
@@ -74,7 +84,8 @@ def show_image_info(path: Path = Argument(exists=True, show_default=False)) -> N
         image_info = read_image_info(list_dir(path))
     else:
         image_info = read_image_info(path)
-    print_args(path=str(path), image_info=str(image_info))
+    logger.info(f"{path=}")
+    logger.info(f"{image_info=}")
 
 
 scale_progress = ChainedIndexProgress(None, "scale")
@@ -97,7 +108,7 @@ def image_2_precomputed(
     if resume:
         load_work_progress(output_directory)
 
-    url_path = check_output_directory(output_directory)
+    url_path = check_output_directory(output_directory, BASE_PATH)
     logger.info(f"{url_path=}")
 
     image_info = read_image_info(image_path)
@@ -134,6 +145,36 @@ def image_2_precomputed(
             scale,
             multi_scale_metadata,
         )
+
+
+def build_ng_base_json(
+    channel_colors: list[col4], resolution: ImageResolution, size: ImageSize, dtype: np.dtype, url_path: str
+) -> JsonObject:
+    return {
+        "dimensions": {
+            "x": [resolution.x * 1e-9, "m"],
+            "y": [resolution.y * 1e-9, "m"],
+            "z": [resolution.z * 1e-9, "m"],
+        },
+        "position": [dimension_size / 2 for dimension_size in astuple(size)],
+        "layout": "4panel",
+        "layer": [
+            {
+                "type": "image",
+                "name": f"channel_{channel}",
+                "source": f"precomputed://{URL}/{url_path}/channel_{channel}",
+                "opacity": 1,
+                "blend": "additive",
+                "shaderControls": {
+                    "color": f"#{channel_color.r:02x}{channel_color.g:02x}{channel_color.b:02x}",
+                    "normalized": {
+                        "range": [0.0, 1.0] if dtype.kind == "f" else [np.iinfo(dtype).min, np.iinfo(dtype).max]
+                    },
+                },
+            }
+            for channel, channel_color in enumerate(channel_colors)
+        ],
+    }
 
 
 def convert_data(

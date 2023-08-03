@@ -1,7 +1,6 @@
 import json
 from pathlib import Path
 
-from convert_precomputed.config import BASE_PATH
 from convert_precomputed.types import Json, OsPath
 
 
@@ -16,7 +15,7 @@ def list_dir(path: Path) -> list[Path]:
     return files
 
 
-def check_output_directory(path: Path, base_path: Path = BASE_PATH) -> str:
+def check_output_directory(path: Path, base_path: Path) -> str:
     if not path.exists():
         path.mkdir(parents=True, exist_ok=True)
     elif not path.is_dir():
