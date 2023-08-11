@@ -138,7 +138,12 @@ def image_2_precomputed(
 
 
 def build_ng_base_json(
-    channel_colors: list[col4], resolution: ImageResolution, size: ImageSize, dtype: np.dtype, url_path: str
+    channel_colors: list[col4],
+    resolution: ImageResolution,
+    size: ImageSize,
+    dtype: np.dtype,
+    url_path: str,
+    base_url: str = URL,
 ) -> JsonObject:
     return {
         "dimensions": {
@@ -152,7 +157,7 @@ def build_ng_base_json(
             {
                 "type": "image",
                 "name": f"channel_{channel}",
-                "source": f"precomputed://{URL}/{url_path}/channel_{channel}",
+                "source": f"precomputed://{base_url}/{url_path}/channel_{channel}",
                 "opacity": 1,
                 "blend": "additive",
                 "shaderControls": {
