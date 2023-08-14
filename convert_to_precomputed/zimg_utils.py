@@ -1,6 +1,8 @@
+import os
 from typing import Iterable
 
 import numpy as np
+from deprecation import deprecated
 from numpy import ndarray
 from zimg import Dimension, VoxelSizeUnit, ZImg, ZImgInfo, ZImgRegion, ZVoxelCoordinate
 
@@ -8,6 +10,7 @@ from convert_to_precomputed.types import ImageRegion, ImageResolution, ImageSize
 
 
 # noinspection PyTypeChecker
+@deprecated(details="use read_image_info_v2")
 def read_image_info(image_path: OsPath | Iterable[OsPath]) -> ZImgInfo:
     if isinstance(image_path, Iterable):
         image_paths = [str(path) for path in image_path]
@@ -16,6 +19,18 @@ def read_image_info(image_path: OsPath | Iterable[OsPath]) -> ZImgInfo:
         image_infos = ZImg.readImgInfos(str(image_path))
     result: ZImgInfo = image_infos[0]
     return result
+
+
+# noinspection PyTypeChecker
+def read_image_info_v2(image_path: OsPath) -> ZImgInfo:
+    if os.path.isdir(image_path):
+        image_paths = [str(path) for path in os.listdir(image_path)]
+        image_infos = ZImg.readImgInfos(image_paths, catDim=Dimension.Z, catScenes=True)
+    elif os.path.isfile(image_path):
+        image_infos = ZImg.readImgInfos(str(image_path))
+    else:
+        raise ValueError(f"invalid image path {image_path}")
+    return image_infos[0]
 
 
 def get_image_size(image_info: ZImgInfo) -> ImageSize:

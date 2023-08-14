@@ -4,7 +4,7 @@ import numpy as np
 import typer
 
 from airflow_dag.spec import ConvertSpec, ImageChannel, ImageInfo
-from convert_to_precomputed.__main__ import build_ng_base_json
+from convert_to_precomputed.convert import build_ng_base_json
 from convert_to_precomputed.io_utils import check_output_directory, dump_json, list_dir
 from convert_to_precomputed.tensorstore_utils import build_multiscale_metadata, build_scales_dyadic_pyramid
 from convert_to_precomputed.zimg_utils import get_image_resolution, get_image_size, read_image_info
