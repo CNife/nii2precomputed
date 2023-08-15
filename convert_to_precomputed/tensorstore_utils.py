@@ -4,8 +4,17 @@ from pathlib import Path
 
 import numpy as np
 import tensorstore as ts
+from deprecation import deprecated
 
-from convert_to_precomputed.types import ImageResolution, ImageSize, JsonObject, ResolutionRatio, TsScaleMetadata
+from convert_to_precomputed.types import (
+    ImageResolution,
+    ImageSize,
+    JsonObject,
+    MultiscaleMetadata,
+    ResolutionPM,
+    ResolutionRatio,
+    TsScaleMetadata,
+)
 from vendor.neuroglancer_scripts_dyadic_pyramid import fill_scales_for_dyadic_pyramid
 
 DEFAULT_SHARDING_ARG: JsonObject = {
@@ -19,11 +28,11 @@ DEFAULT_SHARDING_ARG: JsonObject = {
 }
 
 
-def build_scales_dyadic_pyramid(resolution: ImageResolution, size: ImageSize) -> list[TsScaleMetadata]:
+def build_scales_dyadic_pyramid(resolution: ImageResolution | ResolutionPM, size: ImageSize) -> list[TsScaleMetadata]:
     init_scale_info = {
         "encoding": "raw",
         "sharding": DEFAULT_SHARDING_ARG,
-        "resolution": list(astuple(resolution)),
+        "resolution": [resolution.x, resolution.y, resolution.z],
         "size": list(astuple(size)),
     }
     info_dict = {"scales": [init_scale_info]}
@@ -35,11 +44,18 @@ def build_scales_dyadic_pyramid(resolution: ImageResolution, size: ImageSize) ->
     return info_dict["scales"]
 
 
+@deprecated(details="use build_multiscale_metadata_v2")
 def build_multiscale_metadata(dtype: np.dtype, num_channels: int) -> JsonObject:
     return {"data_type": str(dtype), "num_channels": num_channels, "type": "image"}
 
 
-def scale_resolution_ratio(scale_info: TsScaleMetadata, origin_resolution: ImageResolution) -> ResolutionRatio:
+def build_multiscale_metadata_v2(data_type: str | np.dtype, num_channels: int) -> MultiscaleMetadata:
+    return MultiscaleMetadata(data_type=str(data_type), num_channels=num_channels, type="image")
+
+
+def scale_resolution_ratio(
+    scale_info: TsScaleMetadata, origin_resolution: ImageResolution | ResolutionPM
+) -> ResolutionRatio:
     resolution = scale_info["resolution"]
     return ResolutionRatio(
         x=round(resolution[0] / origin_resolution.x),

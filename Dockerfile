@@ -42,7 +42,7 @@ RUN source $condaHome/etc/profile.d/conda.sh && \
     conda install -y --update-all python=3.10 && \
     conda install -y -c fenglab zimg && \
     conda install -y numpy loguru typer && \
-    pip install tensorstore
+    pip install tensorstore pydantic
 
 COPY convert_to_precomputed /code/convert_to_precomputed/
 COPY vendor /code/vendor

@@ -22,17 +22,17 @@ from convert_to_precomputed.tensorstore_utils import (
 )
 from convert_to_precomputed.types import (
     DimensionRange,
-    ImageRegion,
     ImageResolution,
     ImageSize,
     JsonObject,
+    ResolutionPM,
     TsScaleMetadata,
 )
 from convert_to_precomputed.zimg_utils import (
     get_image_dtype,
     get_image_resolution,
     get_image_size,
-    read_image_data,
+    read_image_data_v2,
     read_image_info,
 )
 
@@ -136,9 +136,9 @@ def build_ng_base_json(
 
 
 def convert_single_scale(
-    image_path: Path | list[Path],
+    image_path: Path,
     output_directory: Path,
-    resolution: ImageResolution,
+    resolution: ImageResolution | ResolutionPM,
     z_range: DimensionRange,
     write_block_size: int,
     scale: TsScaleMetadata,
@@ -154,12 +154,8 @@ def convert_single_scale(
         read_z_start, read_z_end = astuple(read_z_range)
 
         with log_time_usage(f"{z_range_progress} read image data"):
-            image_data = read_image_data(
-                image_path,
-                ImageRegion(
-                    x=DimensionRange(0, -1), y=DimensionRange(0, -1), z=DimensionRange(read_z_start, read_z_end)
-                ),
-                ratio,
+            image_data = read_image_data_v2(
+                image_path, 0, -1, 0, -1, read_z_start, read_z_end, ratio.x, ratio.y, ratio.z
             )
         image_data = convert_image_data(image_data)
 
@@ -168,7 +164,8 @@ def convert_single_scale(
             write_tensorstore(
                 channel_index,
                 channel_data,
-                DimensionRange((read_z_start + ratio.z - 1) // ratio.z, (read_z_end + ratio.z - 1) // ratio.z),
+                (read_z_start + ratio.z - 1) // ratio.z,
+                (read_z_end + ratio.z - 1) // ratio.z,
                 write_block_size,
                 output_directory,
                 scale,
@@ -180,7 +177,8 @@ def convert_single_scale(
 def write_tensorstore(
     channel_index: int,
     channel_data: ndarray,
-    write_z_range: DimensionRange,
+    write_z_start: int,
+    write_z_end: int,
     write_block_size: int,
     output_directory: Path,
     scale: TsScaleMetadata,
@@ -202,10 +200,7 @@ def write_tensorstore(
         lambda xyr: f"({xyr[0].start},{xyr[1].start})-({xyr[0].end},{xyr[1].end})",
     ):
         write_range = ts.d["channel", "x", "y", "z"][
-            channel_index,
-            x_range.start : x_range.end,
-            y_range.start : y_range.end,
-            write_z_range.start : write_z_range.end,
+            channel_index, x_range.start : x_range.end, y_range.start : y_range.end, write_z_start:write_z_end
         ]
         xy_range_progress.save(output_directory / "work_status.json")
         with log_time_usage(f"{xy_range_progress} write data"):

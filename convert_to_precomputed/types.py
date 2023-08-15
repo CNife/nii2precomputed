@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeAlias, TypeVar
 
+from pydantic import BaseModel, Field
+
 T: TypeVar = TypeVar("T")
 
 OsPath: TypeAlias = Path | str
@@ -48,3 +50,53 @@ JsonObject: TypeAlias = dict[JsonString, "Json"]
 Json: TypeAlias = JsonString | JsonNumber | JsonNull | JsonBoolean | JsonArray | JsonObject
 
 TsScaleMetadata: TypeAlias = JsonObject
+
+
+class ResolutionPM(BaseModel):
+    x: float
+    y: float
+    z: float
+
+
+class SizePM(BaseModel):
+    x: int
+    y: int
+    z: int
+
+
+class ScaleRatioPM(SizePM):
+    pass
+
+
+class Sharding(BaseModel):
+    type: str = Field(serialization_alias="@type")
+    preshift_bits: int
+    hash: str
+    minishard_bits: int
+    shard_bits: int
+    minishard_index_encoding: str = "raw"
+    data_encoding: str = "raw"
+
+
+class ScaleMetadata(BaseModel):
+    encoding: str
+    sharding: Sharding
+    resolution: list[float]
+    size: list[int]
+    chunk_sizes: list[int]
+
+
+class MultiscaleMetadata(BaseModel):
+    data_type: str
+    num_channels: int
+    type: str
+
+
+class ConvertSpec(BaseModel):
+    image_path: str
+    output_directory: str
+    resolution: ResolutionPM
+    write_block_size: int
+    size: SizePM
+    multiscale: MultiscaleMetadata
+    scales: list[ScaleMetadata]

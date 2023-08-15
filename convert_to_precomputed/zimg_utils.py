@@ -6,7 +6,15 @@ from deprecation import deprecated
 from numpy import ndarray
 from zimg import Dimension, VoxelSizeUnit, ZImg, ZImgInfo, ZImgRegion, ZVoxelCoordinate
 
-from convert_to_precomputed.types import ImageRegion, ImageResolution, ImageSize, OsPath, ResolutionRatio
+from convert_to_precomputed.types import (
+    ImageRegion,
+    ImageResolution,
+    ImageSize,
+    OsPath,
+    ResolutionPM,
+    ResolutionRatio,
+    SizePM,
+)
 
 
 # noinspection PyTypeChecker
@@ -37,9 +45,20 @@ def get_image_size(image_info: ZImgInfo) -> ImageSize:
     return ImageSize(x=image_info.width, y=image_info.height, z=image_info.depth)
 
 
+def get_image_size_v2(image_info: ZImgInfo) -> SizePM:
+    return SizePM(x=image_info.width, y=image_info.height, z=image_info.depth)
+
+
 def get_image_resolution(image_info: ZImgInfo) -> ImageResolution:
     scale = _unit_scale(image_info.voxelSizeUnit)
     return ImageResolution(
+        x=image_info.voxelSizeX * scale, y=image_info.voxelSizeY * scale, z=image_info.voxelSizeZ * scale
+    )
+
+
+def get_image_resolution_v2(image_info: ZImgInfo) -> ResolutionPM:
+    scale = _unit_scale(image_info.voxelSizeUnit)
+    return ResolutionPM(
         x=image_info.voxelSizeX * scale, y=image_info.voxelSizeY * scale, z=image_info.voxelSizeZ * scale
     )
 
@@ -75,6 +94,37 @@ def read_image_data(image_path: OsPath | Iterable[OsPath], region: ImageRegion, 
         zimg = ZImg(str(image_path), region=zimg_region, **zimg_ratio_dict)
     zimg_data = zimg.data[0].copy(order="C")
     return zimg_data
+
+
+def read_image_data_v2(
+    image_path: OsPath,
+    x_start: int,
+    x_end: int,
+    y_start: int,
+    y_end: int,
+    z_start: int,
+    z_end: int,
+    x_ratio: int,
+    y_ratio: int,
+    z_ratio: int,
+) -> ndarray:
+    zimg_region = ZImgRegion(
+        ZVoxelCoordinate(x_start, y_start, z_start, 0, 0), ZVoxelCoordinate(x_end, y_end, z_end, -1, -1)
+    )
+    if os.path.isdir(image_path):
+        image_paths = [str(path) for path in os.listdir(image_path)]
+        zimg = ZImg(
+            image_paths,
+            catDim=Dimension.Z,
+            catScenes=True,
+            region=zimg_region,
+            xRatio=x_ratio,
+            yRatio=y_ratio,
+            zRatio=z_ratio,
+        )
+    else:
+        zimg = ZImg(str(image_path), region=zimg_region, xRatio=x_ratio, yRatio=y_ratio, zRatio=z_ratio)
+    return zimg.data[0].copy(order="C")
 
 
 def _region_2_zimg(region: ImageRegion) -> ZImgRegion:

@@ -5,9 +5,20 @@ from pathlib import Path
 from loguru import logger
 from typer import Argument, Option, Typer
 
-from convert_to_precomputed.convert import LOG_FORMAT, image_2_precomputed
-from convert_to_precomputed.io_utils import list_dir
-from convert_to_precomputed.zimg_utils import read_image_info
+from convert_to_precomputed.chained_progress import ChainedProgress
+from convert_to_precomputed.convert import LOG_FORMAT, build_ng_base_json, convert_single_scale, image_2_precomputed
+from convert_to_precomputed.io_utils import check_output_directory, dump_json, list_dir
+from convert_to_precomputed.tensorstore_utils import build_multiscale_metadata_v2, build_scales_dyadic_pyramid
+from convert_to_precomputed.types import ConvertSpec, DimensionRange, ImageResolution, ResolutionPM, ScaleMetadata
+from convert_to_precomputed.zimg_utils import (
+    get_image_dtype,
+    get_image_resolution,
+    get_image_resolution_v2,
+    get_image_size,
+    get_image_size_v2,
+    read_image_info,
+    read_image_info_v2,
+)
 
 URL: str = str(os.environ.get("URL", "http://10.11.40.170:2000"))
 BASE_PATH: Path = Path(os.environ.get("BASE_PATH", "/zjbs-data/share"))
@@ -50,6 +61,31 @@ def show_info(path: Path = Argument(exists=True, show_default=False)) -> None:
     logger.info(f"{image_info=}")
 
 
+@app.command(help="Generate base.json for image")
+def gen_base_json(
+    image_path: Path = Argument(
+        help="Image file or files directory", exists=True, dir_okay=True, file_okay=True, show_default=False
+    ),
+    output_directory: Path = Argument(help="Output directory", show_default=False),
+    resolution: str = Argument(help="resolution of x, y, z", default="0.0,0.0,0.0"),
+    base_path: Path = Option(help="Base path, must be parent of output directory", default=Path("/zjbs-data/share")),
+    base_url: str = Option(help="Base url in base.json", default="http://10.11.40.170:2000"),
+) -> None:
+    image_info = read_image_info_v2(image_path)
+    logger.info(f"{image_info=}")
+    if resolution == (0.0, 0.0, 0.0):
+        resolution = get_image_resolution(image_info)
+    else:
+        resolution = ImageResolution(*resolution)
+    logger.info(f"{resolution=}")
+    size = get_image_size(image_info)
+    data_type = get_image_dtype(image_info)
+    url_path = check_output_directory(output_directory, base_path)
+
+    base_dict = build_ng_base_json(image_info.channelColors, resolution, size, data_type, url_path, base_url)
+    dump_json(base_dict, output_directory / "base.json")
+
+
 @app.command(help="Generate specification for image")
 def gen_spec(
     image_path: Path = Argument(
@@ -58,24 +94,28 @@ def gen_spec(
     output_directory: Path = Argument(help="Output directory", show_default=False),
     resolution: str = Argument(help="resolution of x, y, z", default="0.0,0.0,0.0"),
     write_block_size: int = Option(help="Block size when writing precomputed", default=512),
-    base_url: str = Option(help="Base url in base.json", default="http://10.11.40.170:2000"),
-    base_path: Path = Option(help="Base path, must be parent of output directory", default=Path("/zjbs-data/share")),
 ) -> None:
-    pass
+    image_info = read_image_info_v2(image_path)
+    resolution = [float(r) for r in resolution.split(",")]
+    if resolution == [0.0, 0.0, 0.0]:
+        resolution = get_image_resolution_v2(image_info)
+    else:
+        resolution = ResolutionPM(x=resolution[0], y=resolution[1], z=resolution[2])
 
-
-@app.command(help="Generate base.json for image")
-def gen_base_json(
-    image_path: Path = Argument(
-        help="Image file or files directory", exists=True, dir_okay=True, file_okay=True, show_default=False
-    ),
-    output_directory: Path = Argument(help="Output directory", show_default=False),
-    resolution: str = Argument(help="resolution of x, y, z", default="0.0,0.0,0.0"),
-    write_block_size: int = Option(help="Block size when writing precomputed", default=512),
-    base_url: str = Option(help="Base url in base.json", default="http://10.11.40.170:2000"),
-    base_path: Path = Option(help="Base path, must be parent of output directory", default=Path("/zjbs-data/share")),
-) -> None:
-    pass
+    scales = [ScaleMetadata(**scale) for scale in build_scales_dyadic_pyramid(resolution, get_image_size(image_info))]
+    multiscale_metadata = build_multiscale_metadata_v2(image_info.dataTypeString(), image_info.numChannels)
+    spec = ConvertSpec(
+        image_path=str(image_path),
+        output_directory=str(output_directory),
+        resolution=resolution,
+        size=get_image_size_v2(image_info),
+        write_block_size=write_block_size,
+        multiscale=multiscale_metadata,
+        scales=scales,
+    )
+    logger.info(f"{spec=}")
+    spec_json = spec.model_dump_json(indent=2, by_alias=True)
+    (output_directory / "spec.json").write_text(spec_json)
 
 
 @app.command(help="Convert single scale for image")
@@ -83,9 +123,19 @@ def convert_scale(
     spec_path: Path = Argument(
         help="Specification for converting image", exists=True, file_okay=True, dir_okay=False, show_default=False
     ),
-    scale_key: str = Argument(help="The scale to be converted in spec file", show_default=False),
+    scale_index: int = Argument(help="The scale to be converted in spec file", show_default=False),
 ) -> None:
-    pass
+    spec = ConvertSpec.model_validate_json(spec_path.read_text())
+    convert_single_scale(
+        image_path=Path(spec.image_path),
+        output_directory=Path(spec.output_directory),
+        resolution=spec.resolution,
+        z_range=DimensionRange(start=0, end=spec.size.z),
+        write_block_size=spec.write_block_size,
+        scale=spec.scales[scale_index].model_dump(by_alias=True),
+        multi_scale_metadata=spec.multiscale.model_dump(),
+        scale_progress=ChainedProgress(f"scale_{scale_index}", None),
+    )
 
 
 @logger.catch
