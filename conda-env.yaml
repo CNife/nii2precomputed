@@ -1,0 +1,14 @@
+name: convert_to_precomputed
+channels:
+  - fenglab
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - zimg
+  - loguru
+  - typer
+  - pip:
+      - tensorstore
+      - pydantic==2.*
+      - deprecation
