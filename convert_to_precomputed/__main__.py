@@ -5,7 +5,6 @@ from pathlib import Path
 from loguru import logger
 from typer import Argument, Option, Typer
 
-from convert_to_precomputed.chained_progress import ChainedProgress
 from convert_to_precomputed.convert import LOG_FORMAT, build_ng_base_json, convert_single_scale, image_2_precomputed
 from convert_to_precomputed.io_utils import check_output_directory, dump_json, list_dir
 from convert_to_precomputed.tensorstore_utils import build_multiscale_metadata_v2, build_scales_dyadic_pyramid
@@ -44,8 +43,6 @@ def convert(
         f"image_path={str(image_path)},output_directory={str(output_directory)},{resolution=},{z_range=},"
         f"{write_block_size=},{resume=}"
     )
-    if image_path.is_dir():
-        image_path = list_dir(image_path)
     image_2_precomputed(
         image_path, output_directory, resolution, z_range, write_block_size, resume, base_url, base_path
     )
@@ -73,16 +70,20 @@ def gen_base_json(
 ) -> None:
     image_info = read_image_info_v2(image_path)
     logger.info(f"{image_info=}")
-    if resolution == (0.0, 0.0, 0.0):
+
+    resolution = [float(r) for r in resolution.split(",")]
+    if resolution == [0.0, 0.0, 0.0]:
         resolution = get_image_resolution(image_info)
     else:
         resolution = ImageResolution(*resolution)
     logger.info(f"{resolution=}")
+
     size = get_image_size(image_info)
     data_type = get_image_dtype(image_info)
     url_path = check_output_directory(output_directory, base_path)
 
     base_dict = build_ng_base_json(image_info.channelColors, resolution, size, data_type, url_path, base_url)
+    output_directory.mkdir(parents=True, exist_ok=True)
     dump_json(base_dict, output_directory / "base.json")
 
 
@@ -102,7 +103,10 @@ def gen_spec(
     else:
         resolution = ResolutionPM(x=resolution[0], y=resolution[1], z=resolution[2])
 
-    scales = [ScaleMetadata(**scale) for scale in build_scales_dyadic_pyramid(resolution, get_image_size(image_info))]
+    scales = [
+        ScaleMetadata.model_validate(scale)
+        for scale in build_scales_dyadic_pyramid(resolution, get_image_size(image_info))
+    ]
     multiscale_metadata = build_multiscale_metadata_v2(image_info.dataTypeString(), image_info.numChannels)
     spec = ConvertSpec(
         image_path=str(image_path),
@@ -134,7 +138,8 @@ def convert_scale(
         write_block_size=spec.write_block_size,
         scale=spec.scales[scale_index].model_dump(by_alias=True),
         multi_scale_metadata=spec.multiscale.model_dump(),
-        scale_progress=ChainedProgress(f"scale_{scale_index}", None),
+        scale_progress=None,
+        write_status_json=False,
     )
 
 

@@ -69,7 +69,7 @@ class ScaleRatioPM(SizePM):
 
 
 class Sharding(BaseModel):
-    type: str = Field(serialization_alias="@type")
+    type: str = Field(alias="@type")
     preshift_bits: int
     hash: str
     minishard_bits: int

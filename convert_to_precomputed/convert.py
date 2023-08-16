@@ -33,7 +33,7 @@ from convert_to_precomputed.zimg_utils import (
     get_image_resolution,
     get_image_size,
     read_image_data_v2,
-    read_image_info,
+    read_image_info_v2,
 )
 
 LOG_FORMAT = (
@@ -62,7 +62,7 @@ def image_2_precomputed(
     url_path = check_output_directory(output_directory, base_path)
     logger.info(f"{url_path=}")
 
-    image_info = read_image_info(image_path)
+    image_info = read_image_info_v2(image_path)
     logger.info(f"{image_info=}")
 
     if resolution == (0.0, 0.0, 0.0):
@@ -96,6 +96,7 @@ def image_2_precomputed(
             scale,
             multi_scale_metadata,
             scale_progress,
+            True,
         )
     logger.info("DONE")
 
@@ -143,13 +144,17 @@ def convert_single_scale(
     write_block_size: int,
     scale: TsScaleMetadata,
     multi_scale_metadata: JsonObject,
-    scale_progress: ChainedProgress,
+    scale_progress: ChainedProgress | None,
+    write_status_json: bool,
 ):
     ratio = scale_resolution_ratio(scale, resolution)
     read_z_size = scale["chunk_sizes"][2]
     assert z_range.start % read_z_size == 0
     read_z_ranges = calc_ranges(z_range.start, z_range.end, read_z_size)
-    z_range_progress = scale_progress.get_or_add("z_range")
+    if scale_progress is None:
+        z_range_progress = ChainedProgress("z_range", None)
+    else:
+        z_range_progress = scale_progress.get_or_add("z_range")
     for read_z_range in z_range_progress.bind(read_z_ranges, lambda zr: f"{zr.start}-{zr.end}"):
         read_z_start, read_z_end = astuple(read_z_range)
 
@@ -171,6 +176,7 @@ def convert_single_scale(
                 scale,
                 multi_scale_metadata,
                 channel_progress,
+                write_status_json=write_status_json,
             )
 
 
@@ -184,6 +190,7 @@ def write_tensorstore(
     scale: TsScaleMetadata,
     multi_scale_metadata: JsonObject,
     channel_progress: ChainedProgress,
+    write_status_json: bool,
 ):
     channel_name = f"channel_{channel_index}"
     channel_data = channel_data.transpose()
@@ -202,7 +209,8 @@ def write_tensorstore(
         write_range = ts.d["channel", "x", "y", "z"][
             channel_index, x_range.start : x_range.end, y_range.start : y_range.end, write_z_start:write_z_end
         ]
-        xy_range_progress.save(output_directory / "work_status.json")
+        if write_status_json:
+            xy_range_progress.save(output_directory / "work_status.json")
         with log_time_usage(f"{xy_range_progress} write data"):
             ts_writer[write_range] = channel_data[x_range.start : x_range.end, y_range.start : y_range.end]
 

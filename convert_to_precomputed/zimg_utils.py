@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 from typing import Iterable
 
 import numpy as np
@@ -31,10 +31,11 @@ def read_image_info(image_path: OsPath | Iterable[OsPath]) -> ZImgInfo:
 
 # noinspection PyTypeChecker
 def read_image_info_v2(image_path: OsPath) -> ZImgInfo:
-    if os.path.isdir(image_path):
-        image_paths = [str(path) for path in os.listdir(image_path)]
+    image_path = Path(image_path)
+    if image_path.is_dir():
+        image_paths = [str(path) for path in image_path.iterdir() if path.is_file()]
         image_infos = ZImg.readImgInfos(image_paths, catDim=Dimension.Z, catScenes=True)
-    elif os.path.isfile(image_path):
+    elif image_path.is_file():
         image_infos = ZImg.readImgInfos(str(image_path))
     else:
         raise ValueError(f"invalid image path {image_path}")
@@ -108,11 +109,12 @@ def read_image_data_v2(
     y_ratio: int,
     z_ratio: int,
 ) -> ndarray:
+    image_path = Path(image_path)
     zimg_region = ZImgRegion(
         ZVoxelCoordinate(x_start, y_start, z_start, 0, 0), ZVoxelCoordinate(x_end, y_end, z_end, -1, -1)
     )
-    if os.path.isdir(image_path):
-        image_paths = [str(path) for path in os.listdir(image_path)]
+    if image_path.is_dir():
+        image_paths = [str(path) for path in image_path.iterdir() if path.is_file()]
         zimg = ZImg(
             image_paths,
             catDim=Dimension.Z,
