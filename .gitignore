@@ -7,5 +7,5 @@ __pycache__/
 
 output-images/
 
-/*.build/
-/*.dist/
+*.build/
+*.dist/
