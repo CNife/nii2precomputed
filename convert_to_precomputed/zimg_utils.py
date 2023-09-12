@@ -6,15 +6,7 @@ from deprecation import deprecated
 from numpy import ndarray
 from zimg import Dimension, VoxelSizeUnit, ZImg, ZImgInfo, ZImgRegion, ZVoxelCoordinate
 
-from convert_to_precomputed.types import (
-    ImageRegion,
-    ImageResolution,
-    ImageSize,
-    OsPath,
-    ResolutionPM,
-    ResolutionRatio,
-    SizePM,
-)
+from my_types import ImageRegion, ImageResolution, ImageSize, OsPath, ResolutionPM, ResolutionRatio, SizePM
 
 
 # noinspection PyTypeChecker

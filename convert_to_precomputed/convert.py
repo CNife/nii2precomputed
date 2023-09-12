@@ -12,29 +12,16 @@ from loguru import logger
 from numpy import ndarray
 from zimg import col4
 
-from convert_to_precomputed.chained_progress import ChainedProgress
-from convert_to_precomputed.io_utils import check_output_directory, dump_json
-from convert_to_precomputed.tensorstore_utils import (
+from chained_progress import ChainedProgress
+from io_utils import check_output_directory, dump_json
+from tensorstore_utils import (
     build_multiscale_metadata,
     build_scales_dyadic_pyramid,
     open_tensorstore_to_write,
     scale_resolution_ratio,
 )
-from convert_to_precomputed.types import (
-    DimensionRange,
-    ImageResolution,
-    ImageSize,
-    JsonObject,
-    ResolutionPM,
-    TsScaleMetadata,
-)
-from convert_to_precomputed.zimg_utils import (
-    get_image_dtype,
-    get_image_resolution,
-    get_image_size,
-    read_image_data_v2,
-    read_image_info_v2,
-)
+from my_types import DimensionRange, ImageResolution, ImageSize, JsonObject, ResolutionPM, TsScaleMetadata
+from zimg_utils import get_image_dtype, get_image_resolution, get_image_size, read_image_data_v2, read_image_info_v2
 
 LOG_FORMAT = (
     "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green>|"

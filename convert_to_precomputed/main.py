@@ -5,11 +5,11 @@ from pathlib import Path
 from loguru import logger
 from typer import Argument, Option, Typer
 
-from convert_to_precomputed.convert import LOG_FORMAT, build_ng_base_json, convert_single_scale, image_2_precomputed
-from convert_to_precomputed.io_utils import check_output_directory, dump_json, list_dir
-from convert_to_precomputed.tensorstore_utils import build_multiscale_metadata_v2, build_scales_dyadic_pyramid
-from convert_to_precomputed.types import ConvertSpec, DimensionRange, ImageResolution, ResolutionPM, ScaleMetadata
-from convert_to_precomputed.zimg_utils import (
+from convert import LOG_FORMAT, build_ng_base_json, convert_single_scale, image_2_precomputed
+from io_utils import check_output_directory, dump_json, list_dir
+from tensorstore_utils import build_multiscale_metadata_v2, build_scales_dyadic_pyramid
+from my_types import ConvertSpec, DimensionRange, ImageResolution, ResolutionPM, ScaleMetadata
+from zimg_utils import (
     get_image_dtype,
     get_image_resolution,
     get_image_resolution_v2,
@@ -151,4 +151,5 @@ def main():
 
 
 if __name__ == "__main__":
+    sys.path.append(os.path.abspath(os.path.dirname(__file__)))
     main()

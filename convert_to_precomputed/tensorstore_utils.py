@@ -6,7 +6,7 @@ import numpy as np
 import tensorstore as ts
 from deprecation import deprecated
 
-from convert_to_precomputed.types import (
+from my_types import (
     ImageResolution,
     ImageSize,
     JsonObject,

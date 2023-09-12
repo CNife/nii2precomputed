@@ -2,8 +2,8 @@ import json
 from reprlib import recursive_repr
 from typing import Callable, Iterator, Optional, Sequence, TypeVar
 
-from convert_to_precomputed.io_utils import dump_json
-from convert_to_precomputed.types import JsonObject, OsPath
+from io_utils import dump_json
+from my_types import JsonObject, OsPath
 
 T = TypeVar("T")
 

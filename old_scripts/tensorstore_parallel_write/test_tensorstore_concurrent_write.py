@@ -11,7 +11,7 @@ from convert_to_precomputed.tensorstore_utils import (
     open_tensorstore_to_write,
     scale_resolution_ratio,
 )
-from convert_to_precomputed.types import DimensionRange, ImageRegion
+from convert_to_precomputed.my_types import DimensionRange, ImageRegion
 from convert_to_precomputed.zimg_utils import (
     get_image_dtype,
     get_image_resolution,

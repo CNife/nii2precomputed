@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from convert_to_precomputed.types import Json, OsPath
+from my_types import Json, OsPath
 
 
 def dump_json(obj: Json, path: OsPath) -> None:
