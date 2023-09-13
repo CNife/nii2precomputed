@@ -1,10 +1,13 @@
+import collections
 import copy
 import logging
 import math
 
-from vendor.neuroglancer_scripts_utils import LENGTH_UNITS, ceil_div, format_length
-
 logger = logging.getLogger(__name__)
+
+LENGTH_UNITS = collections.OrderedDict(
+    [("km", 1e-12), ("m", 1e-9), ("mm", 1e-6), ("um", 1e-3), ("nm", 1.0), ("pm", 1e3)]
+)
 
 
 def fill_scales_for_dyadic_pyramid(info, target_chunk_size=64, max_scales=None):
@@ -39,10 +42,7 @@ def fill_scales_for_dyadic_pyramid(info, target_chunk_size=64, max_scales=None):
     at most two chunks along every dimension.
     """
     if len(info["scales"]) != 1:
-        logger.warning(
-            "the source info JSON contains multiple scales, only "
-            "the first one will be used."
-        )
+        logger.warning("the source info JSON contains multiple scales, only " "the first one will be used.")
     full_scale_info = info["scales"][0]
 
     target_chunk_exponent = int(math.log2(target_chunk_size))
@@ -57,58 +57,40 @@ def fill_scales_for_dyadic_pyramid(info, target_chunk_size=64, max_scales=None):
 
     full_resolution = full_scale_info["resolution"]
     best_axis_resolution = min(full_resolution)
-    axis_level_delays = [
-        int(round(math.log2(axis_res / best_axis_resolution)))
-        for axis_res in full_resolution
-    ]
+    axis_level_delays = [int(round(math.log2(axis_res / best_axis_resolution))) for axis_res in full_resolution]
     key_unit = choose_unit_for_key(best_axis_resolution)
 
     def downscale_info(scale_level):
         factors = [2 ** max(0, scale_level - delay) for delay in axis_level_delays]
         scale_info = copy.deepcopy(full_scale_info)
         scale_info["resolution"] = [
-            res * axis_factor
-            for res, axis_factor in zip(full_scale_info["resolution"], factors)
+            res * axis_factor for res, axis_factor in zip(full_scale_info["resolution"], factors)
         ]
-        scale_info["size"] = [
-            ceil_div(sz, axis_factor)
-            for sz, axis_factor in zip(full_scale_info["size"], factors)
-        ]
+        scale_info["size"] = [ceil_div(sz, axis_factor) for sz, axis_factor in zip(full_scale_info["size"], factors)]
         # Key is the resolution in micrometres
         # scale_info["key"] = format_length(min(scale_info["resolution"]), key_unit)
 
         max_delay = max(axis_level_delays)
-        anisotropy_factors = [
-            max(0, max_delay - delay - scale_level) for delay in axis_level_delays
-        ]
+        anisotropy_factors = [max(0, max_delay - delay - scale_level) for delay in axis_level_delays]
         sum_anisotropy_factors = sum(anisotropy_factors)
 
         # Ensure that the smallest chunk size is 1 for extremely anisotropic
         # datasets (i.e. reduce the anisotropy of chunk_size)
         excess_anisotropy = sum_anisotropy_factors - 3 * target_chunk_exponent
         if excess_anisotropy > 0:
-            anisotropy_reduction = ceil_div(
-                excess_anisotropy, sum(1 for f in anisotropy_factors if f != 0)
-            )
-            anisotropy_factors = [
-                max(f - anisotropy_reduction, 0) for f in anisotropy_factors
-            ]
+            anisotropy_reduction = ceil_div(excess_anisotropy, sum(1 for f in anisotropy_factors if f != 0))
+            anisotropy_factors = [max(f - anisotropy_reduction, 0) for f in anisotropy_factors]
             sum_anisotropy_factors = sum(anisotropy_factors)
             assert sum_anisotropy_factors <= 3 * target_chunk_exponent
 
         base_chunk_exponent = target_chunk_exponent - (sum_anisotropy_factors + 1) // 3
         assert base_chunk_exponent >= 0
         scale_info["chunk_sizes"] = [
-            2 ** (base_chunk_exponent + anisotropy_factor)
-            for anisotropy_factor in anisotropy_factors
+            2 ** (base_chunk_exponent + anisotropy_factor) for anisotropy_factor in anisotropy_factors
         ]
 
         assert (
-            abs(
-                sum(int(round(math.log2(size))) for size in scale_info["chunk_sizes"])
-                - 3 * target_chunk_exponent
-            )
-            <= 1
+            abs(sum(int(round(math.log2(size))) for size in scale_info["chunk_sizes"]) - 3 * target_chunk_exponent) <= 1
         )
 
         return scale_info
@@ -116,15 +98,12 @@ def fill_scales_for_dyadic_pyramid(info, target_chunk_size=64, max_scales=None):
     # Stop when the downscaled volume fits in two chunks (is target_chunk_size
     # adequate, or should we use the actual chunk sizes?)
     max_downscale_level = max(
-        math.ceil(math.log2(a / target_chunk_size)) - b
-        for a, b in zip(full_scale_info["size"], axis_level_delays)
+        math.ceil(math.log2(a / target_chunk_size)) - b for a, b in zip(full_scale_info["size"], axis_level_delays)
     )
     if max_scales:
         max_downscale_level = min(max_downscale_level, max_scales)
     max_downscale_level = max(max_downscale_level, 1)
-    info["scales"] = [
-        downscale_info(scale_level) for scale_level in range(max_downscale_level)
-    ]
+    info["scales"] = [downscale_info(scale_level) for scale_level in range(max_downscale_level)]
     return info
 
 
@@ -135,6 +114,21 @@ def choose_unit_for_key(resolution_nm):
             format_length(resolution_nm, unit) != format_length(resolution_nm * 2, unit)
         ):
             return unit
-    raise NotImplementedError(
-        "cannot find a suitable unit for {} nm".format(resolution_nm)
-    )
+    raise NotImplementedError("cannot find a suitable unit for {} nm".format(resolution_nm))
+
+
+def ceil_div(a, b):
+    """Ceil integer division (``ceil(a / b)`` using integer arithmetic)."""
+    return (a - 1) // b + 1
+
+
+def format_length(length_nm, unit):
+    """Format a length according to the provided unit (input in nanometres).
+
+    :param float length_nm: a length in nanometres
+    :param str unit: must be one of ``LENGTH_UNITS.keys``
+    :return: the formatted length, rounded to the specified unit (no fractional
+             part is printed)
+    :rtype: str
+    """
+    return format(length_nm * LENGTH_UNITS[unit], ".0f") + unit

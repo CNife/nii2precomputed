@@ -27,19 +27,13 @@ def compute_new_size(image_info: ZImgInfo, target_y: int) -> tuple[ImageSize, in
     origin_size = ImageSize(x=image_info.width, y=image_info.height, z=image_info.depth)
     dbg(origin_size, "origin image size")
     ratio = origin_size.y / target_y
-    result = ImageSize(
-        x=round(origin_size.x / ratio),
-        y=target_y,
-        z=round(origin_size.z / ratio),
-    )
+    result = ImageSize(x=round(origin_size.x / ratio), y=target_y, z=round(origin_size.z / ratio))
     dbg(result, "new image size")
     return result, math.floor(ratio)
 
 
 def read_image_data(image_path: Path, read_ratio: int) -> ndarray:
-    image_data_obj = ZImg(
-        str(image_path), xRatio=read_ratio, yRatio=read_ratio, zRatio=read_ratio
-    )
+    image_data_obj = ZImg(str(image_path), xRatio=read_ratio, yRatio=read_ratio, zRatio=read_ratio)
     image_data = image_data_obj.data[0][0]
     console.print(f"Image size in memory: {humanize_size(image_data.nbytes)}")
     return image_data.transpose().copy()
@@ -59,20 +53,12 @@ def convert_skimage_dtype(image: ndarray, target_dtype: np.dtype) -> ndarray:
             raise ValueError("invalid target_dtype")
 
 
-def write_tensorstore(
-    info: dict[str, Any], image_data: ndarray, out_folder: Path
-) -> None:
-    multiscale_metadata = {
-        "data_type": info["data_type"],
-        "num_channels": info["num_channels"],
-        "type": info["type"],
-    }
+def write_tensorstore(info: dict[str, Any], image_data: ndarray, out_folder: Path) -> None:
+    multiscale_metadata = {"data_type": info["data_type"], "num_channels": info["num_channels"], "type": info["type"]}
     origin_resolution = info["scales"][0]["resolution"][0]
     for scale in track(info["scales"]):
         scale = convert_to_tensorstore_scale_metadata(scale)
-        output_store = open_tensorstore(
-            "channel_0", out_folder, scale, multiscale_metadata
-        )
+        output_store = open_tensorstore("channel_0", out_folder, scale, multiscale_metadata)
         ratio = round(scale["resolution"][0] / origin_resolution)
         if ratio > 1:
             rescaled_image = convert_image_data(downscale_local_mean(image_data, ratio))
@@ -98,12 +84,7 @@ def main():
     resized_image = convert_skimage_dtype(resized_image, image_data.dtype)
 
     build_and_write_base_json(
-        image_info.channelColors,
-        resolution,
-        new_size,
-        resized_image.dtype,
-        "http://localhost:8080",
-        out_folder,
+        image_info.channelColors, resolution, new_size, resized_image.dtype, "http://localhost:8080", out_folder
     )
 
     write_tensorstore(info, resized_image, out_folder)

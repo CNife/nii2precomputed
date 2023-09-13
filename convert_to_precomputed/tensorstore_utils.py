@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import tensorstore as ts
 from deprecation import deprecated
-
+from dyadic_pyramid import fill_scales_for_dyadic_pyramid
 from my_types import (
     ImageResolution,
     ImageSize,
@@ -15,7 +15,6 @@ from my_types import (
     ResolutionRatio,
     TsScaleMetadata,
 )
-from vendor.neuroglancer_scripts_dyadic_pyramid import fill_scales_for_dyadic_pyramid
 
 DEFAULT_SHARDING_ARG: JsonObject = {
     "@type": "neuroglancer_uint64_sharded_v1",

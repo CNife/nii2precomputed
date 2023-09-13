@@ -44,24 +44,13 @@ def main(
     image_size = get_image_size(image_info)
 
     build_and_write_base_json(
-        image_info.channelColors,
-        resolution,
-        image_size,
-        np.dtype(image_info.dataTypeString()),
-        url_path,
-        out_dir,
+        image_info.channelColors, resolution, image_size, np.dtype(image_info.dataTypeString()), url_path, out_dir
     )
 
-    info = build_full_resolution_info(
-        image_info.dataTypeString(), resolution, image_size
-    )
+    info = build_full_resolution_info(image_info.dataTypeString(), resolution, image_size)
     with open(out_dir / "full_resolutions_info.json", "w") as f:
         json.dump(info, f, indent=2)
-    multiscale_metadata = {
-        "data_type": info["data_type"],
-        "num_channels": info["num_channels"],
-        "type": info["type"],
-    }
+    multiscale_metadata = {"data_type": info["data_type"], "num_channels": info["num_channels"], "type": info["type"]}
     scales = info["scales"][start_scale_index:]
 
     convert_to_precomputed(
@@ -97,26 +86,17 @@ def convert_to_precomputed(
         z_ratio = round(scaled_resolution.z / resolution.z)
 
         scale_metadata = convert_to_tensorstore_scale_metadata(scale)
-        output_store = open_tensorstore(
-            f"channel_0",
-            out_dir,
-            scale_metadata,
-            multiscale_metadata,
-        )
+        output_store = open_tensorstore(f"channel_0", out_dir, scale_metadata, multiscale_metadata)
 
         batch_size = scale["chunk_sizes"][0][2]
         assert start_z % batch_size == 0
         z_ranges = [
             (batch_size * i, min(end_z, batch_size * (i + 1)))
-            for i in range(
-                start_z // batch_size, (end_z + batch_size - 1) // batch_size
-            )
+            for i in range(start_z // batch_size, (end_z + batch_size - 1) // batch_size)
         ]
         for z_start, z_end in z_ranges:
             with open(out_dir / "current_working_status.json", "w") as f:
-                json.dump(
-                    {"scale": scale, "z_start": z_start, "z_end": z_end}, f, indent=2
-                )
+                json.dump({"scale": scale, "z_start": z_start, "z_end": z_end}, f, indent=2)
 
             zimg_reader = ZImg(
                 filenames=image_paths[z_start:z_end],
@@ -134,22 +114,13 @@ def convert_to_precomputed(
 
             target_z_start = (z_start + z_ratio - 1) // z_ratio
             target_z_end = (z_end + z_ratio - 1) // z_ratio
-            for target_x_start, target_x_end in ranges(
-                0, image_data.shape[0], scaled_batch_size_x
-            ):
-                for target_y_start, target_y_end in ranges(
-                    0, image_data.shape[1], scaled_batch_size_y
-                ):
+            for target_x_start, target_x_end in ranges(0, image_data.shape[0], scaled_batch_size_x):
+                for target_y_start, target_y_end in ranges(0, image_data.shape[1], scaled_batch_size_y):
                     output_store[
                         ts.d["x", "y", "z", "channel"][
-                            target_x_start:target_x_end,
-                            target_y_start:target_y_end,
-                            target_z_start:target_z_end,
-                            0,
+                            target_x_start:target_x_end, target_y_start:target_y_end, target_z_start:target_z_end, 0
                         ]
-                    ] = image_data[
-                        target_x_start:target_x_end, target_y_start:target_y_end
-                    ]
+                    ] = image_data[target_x_start:target_x_end, target_y_start:target_y_end]
                     console.log(
                         f"SCALE{(x_ratio, y_ratio, z_ratio)}: write data from "
                         f"[{target_x_start}, {target_y_start}, {target_z_start}] to "

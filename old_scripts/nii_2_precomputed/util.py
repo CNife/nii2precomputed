@@ -25,11 +25,7 @@ def dbg_args() -> None:
     caller_func_name = caller_frame.f_code.co_name
     caller_file = caller_frame.f_code.co_filename
     caller_lineno = caller_frame.f_lineno
-    dbg(
-        caller_locals,
-        f"Arguments of [bright_yellow]{caller_func_name}",
-        f"{caller_file}:{caller_lineno}",
-    )
+    dbg(caller_locals, f"Arguments of [bright_yellow]{caller_func_name}", f"{caller_file}:{caller_lineno}")
 
 
 def humanize_size(size: int | float) -> str:

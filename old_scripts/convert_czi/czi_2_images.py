@@ -30,20 +30,14 @@ def convert_czi_2_single_image(image_path: str, out_dir: str, z: int) -> str:
 
     start_time = datetime.now()
     single_image_data = ZImg(
-        image_path,
-        region=ZImgRegion(
-            ZVoxelCoordinate(0, 0, z, 0, 0), ZVoxelCoordinate(-1, -1, z + 1, -1, -1)
-        ),
-        scene=0,
+        image_path, region=ZImgRegion(ZVoxelCoordinate(0, 0, z, 0, 0), ZVoxelCoordinate(-1, -1, z + 1, -1, -1)), scene=0
     )
     single_image_data.save(result_path)
     end_time = datetime.now()
     used_seconds = math.ceil((end_time - start_time).total_seconds())
 
     os.remove(working_file)
-    console.log(
-        f"DONE [{end_time.strftime('%Y-%m-%d %H:%M:%S')}] {result_file_name} used {used_seconds}s"
-    )
+    console.log(f"DONE [{end_time.strftime('%Y-%m-%d %H:%M:%S')}] {result_file_name} used {used_seconds}s")
     return result_path
 
 

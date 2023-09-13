@@ -23,19 +23,14 @@ def main(
     dataset = open_tensorstore_to_read(src_url)
 
     # 读取指定区域数据
-    region = ts.d["channel", "x", "y", "z"][
-        :1, x_start:x_end, y_start:y_end, z_start:z_end
-    ]
+    region = ts.d["channel", "x", "y", "z"][:1, x_start:x_end, y_start:y_end, z_start:z_end]
     region_data = dataset[region].read().result()
 
     # 填充到指定block_size大小
     target_shape = (block_size,) * 3 + (1,)
     zimg_region_data = np.zeros(target_shape, dtype=region_data.dtype, order="C")
     zimg_region_data[
-        : region_data.shape[3],
-        : region_data.shape[2],
-        : region_data.shape[1],
-        : region_data.shape[0],
+        : region_data.shape[3], : region_data.shape[2], : region_data.shape[1], : region_data.shape[0]
     ] = region_data.transpose()
 
     # 写入结果

@@ -3,10 +3,9 @@ from typing import Iterable
 
 import numpy as np
 from deprecation import deprecated
+from my_types import ImageRegion, ImageResolution, ImageSize, OsPath, ResolutionPM, ResolutionRatio, SizePM
 from numpy import ndarray
 from zimg import Dimension, VoxelSizeUnit, ZImg, ZImgInfo, ZImgRegion, ZVoxelCoordinate
-
-from my_types import ImageRegion, ImageResolution, ImageSize, OsPath, ResolutionPM, ResolutionRatio, SizePM
 
 
 # noinspection PyTypeChecker

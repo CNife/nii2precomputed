@@ -2,13 +2,12 @@ import os
 import sys
 from pathlib import Path
 
-from loguru import logger
-from typer import Argument, Option, Typer
-
 from convert import LOG_FORMAT, build_ng_base_json, convert_single_scale, image_2_precomputed
 from io_utils import check_output_directory, dump_json, list_dir
-from tensorstore_utils import build_multiscale_metadata_v2, build_scales_dyadic_pyramid
+from loguru import logger
 from my_types import ConvertSpec, DimensionRange, ImageResolution, ResolutionPM, ScaleMetadata
+from tensorstore_utils import build_multiscale_metadata_v2, build_scales_dyadic_pyramid
+from typer import Argument, Option, Typer
 from zimg_utils import (
     get_image_dtype,
     get_image_resolution,

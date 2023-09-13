@@ -11,9 +11,7 @@ from precomputed_2_chunks.convert_single_chunk import open_tensorstore_to_read
 console = Console()
 
 
-def main(
-    src_url: str, out_path: str, out_file_type: str = "tiff", block_size: int = 512
-) -> None:
+def main(src_url: str, out_path: str, out_file_type: str = "tiff", block_size: int = 512) -> None:
     ts = open_tensorstore_to_read(src_url)
 
     # 简单起见，只处理只有一个channel的数据
@@ -21,17 +19,10 @@ def main(
     x_max, y_max, z_max = ts.shape[:3]
 
     block_ranges = list(
-        itertools.product(
-            chunks(x_max, block_size),
-            chunks(y_max, block_size),
-            chunks(z_max, block_size),
-        )
+        itertools.product(chunks(x_max, block_size), chunks(y_max, block_size), chunks(z_max, block_size))
     )
     for index, ranges in track(
-        enumerate(block_ranges),
-        description="Converting",
-        total=len(block_ranges),
-        console=console,
+        enumerate(block_ranges), description="Converting", total=len(block_ranges), console=console
     ):
         x_range, y_range, z_range = ranges
         filename = convert_single_chunk.main(

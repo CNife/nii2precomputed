@@ -5,13 +5,13 @@ from pathlib import Path
 import tensorstore as ts
 
 from convert_to_precomputed.io_utils import list_dir
+from convert_to_precomputed.my_types import DimensionRange, ImageRegion
 from convert_to_precomputed.tensorstore_utils import (
     build_multiscale_metadata,
     build_scales_dyadic_pyramid,
     open_tensorstore_to_write,
     scale_resolution_ratio,
 )
-from convert_to_precomputed.my_types import DimensionRange, ImageRegion
 from convert_to_precomputed.zimg_utils import (
     get_image_dtype,
     get_image_resolution,

@@ -36,9 +36,7 @@ def main(
     dbg_args()
 
     image_files = list_files_by_name(image_files_dir)
-    image_infos = {
-        image_path: read_image_info(image_path) for image_path in image_files
-    }
+    image_infos = {image_path: read_image_info(image_path) for image_path in image_files}
     dbg(
         {
             str(image_path): (image_info.width, image_info.height, image_info.depth)
@@ -46,9 +44,7 @@ def main(
         },
         "image sizes",
     )
-    huge_image_size, data_type, channel_colors, image_z_offsets = splice_images_size(
-        image_infos
-    )
+    huge_image_size, data_type, channel_colors, image_z_offsets = splice_images_size(image_infos)
     dbg(image_z_offsets, "z offsets")
 
     resolution = Resolution(resolution, resolution, resolution)
@@ -56,14 +52,7 @@ def main(
     dbg(info_dict)
 
     output_base_dir.mkdir(parents=True, exist_ok=True)
-    build_and_write_base_json(
-        channel_colors,
-        resolution,
-        huge_image_size,
-        data_type,
-        base_url,
-        output_base_dir,
-    )
+    build_and_write_base_json(channel_colors, resolution, huge_image_size, data_type, base_url, output_base_dir)
 
     image_data = read_all_images(huge_image_size, data_type, image_z_offsets)
     write_tensorstore(info_dict, image_data, output_base_dir)
@@ -71,9 +60,7 @@ def main(
 
 def list_files_by_name(image_files_dir: Path) -> list[Path]:
     dir_items = [
-        item
-        for item in image_files_dir.iterdir()
-        if item.is_file() and item.name.endswith((".nii", ".nii.gz"))
+        item for item in image_files_dir.iterdir() if item.is_file() and item.name.endswith((".nii", ".nii.gz"))
     ]
     if not dir_items:
         raise ValueError(f"no nii image files in {image_files_dir}")
@@ -83,9 +70,7 @@ def list_files_by_name(image_files_dir: Path) -> list[Path]:
     return dir_items
 
 
-def splice_images_size(
-    image_infos: dict[Path, ZImgInfo]
-) -> tuple[ImageSize, dtype, list[Color], dict[Path, int]]:
+def splice_images_size(image_infos: dict[Path, ZImgInfo]) -> tuple[ImageSize, dtype, list[Color], dict[Path, int]]:
     z_offset, image_z_offsets = 0, {}
     image_x, image_y, image_dtype, image_channel_color = None, None, None, None
     for image_path, image_info in image_infos.items():
@@ -100,29 +85,18 @@ def splice_images_size(
         def check_same_value(wanted, actual, name):
             if wanted is None or wanted == actual:
                 return actual
-            raise ValueError(
-                f"{name} isn't the same, {image_path=}, {wanted=}, {actual=}"
-            )
+            raise ValueError(f"{name} isn't the same, {image_path=}, {wanted=}, {actual=}")
 
         image_x = check_size(image_x, image_info.width, "width")
         image_y = check_size(image_y, image_info.height, "height")
-        image_dtype = check_same_value(
-            image_dtype, dtype(image_info.dataTypeString()), "data type"
-        )
+        image_dtype = check_same_value(image_dtype, dtype(image_info.dataTypeString()), "data type")
         image_channel_color = check_same_value(
-            image_channel_color,
-            [convert_color(c) for c in image_info.channelColors],
-            "channel colors",
+            image_channel_color, [convert_color(c) for c in image_info.channelColors], "channel colors"
         )
 
         image_z_offsets[image_path] = z_offset
         z_offset += image_info.depth
-    return (
-        ImageSize(image_x, image_y, z_offset),
-        image_dtype,
-        image_channel_color,
-        image_z_offsets,
-    )
+    return (ImageSize(image_x, image_y, z_offset), image_dtype, image_channel_color, image_z_offsets)
 
 
 def is_close(a: int, b: int, ratio: float = 0.1) -> bool:
@@ -131,24 +105,15 @@ def is_close(a: int, b: int, ratio: float = 0.1) -> bool:
     return diff / a < ratio
 
 
-def read_all_images(
-    huge_image_size: ImageSize, data_type: dtype, image_z_offsets: dict[Path, int]
-) -> ndarray:
+def read_all_images(huge_image_size: ImageSize, data_type: dtype, image_z_offsets: dict[Path, int]) -> ndarray:
     result = np.empty(huge_image_size, dtype=data_type)
     for image_path, z_offset in track(
-        image_z_offsets.items(),
-        description="Reading images",
-        total=len(image_z_offsets),
-        console=console,
+        image_z_offsets.items(), description="Reading images", total=len(image_z_offsets), console=console
     ):
         zimg_obj = ZImg(str(image_path))
         zimg_data = zimg_obj.data[0][0].transpose()
-        resized_image_data = convert_image_data(
-            resize_image(zimg_data, huge_image_size.x, huge_image_size.y)
-        )
-        result[
-            :, :, z_offset : z_offset + resized_image_data.shape[2]
-        ] = resized_image_data
+        resized_image_data = convert_image_data(resize_image(zimg_data, huge_image_size.x, huge_image_size.y))
+        result[:, :, z_offset : z_offset + resized_image_data.shape[2]] = resized_image_data
     return result
 
 

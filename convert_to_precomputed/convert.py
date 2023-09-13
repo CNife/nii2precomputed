@@ -8,19 +8,18 @@ from typing import Iterable
 
 import numpy as np
 import tensorstore as ts
-from loguru import logger
-from numpy import ndarray
-from zimg import col4
-
 from chained_progress import ChainedProgress
 from io_utils import check_output_directory, dump_json
+from loguru import logger
+from my_types import DimensionRange, ImageResolution, ImageSize, JsonObject, ResolutionPM, TsScaleMetadata
+from numpy import ndarray
 from tensorstore_utils import (
     build_multiscale_metadata,
     build_scales_dyadic_pyramid,
     open_tensorstore_to_write,
     scale_resolution_ratio,
 )
-from my_types import DimensionRange, ImageResolution, ImageSize, JsonObject, ResolutionPM, TsScaleMetadata
+from zimg import col4
 from zimg_utils import get_image_dtype, get_image_resolution, get_image_size, read_image_data_v2, read_image_info_v2
 
 LOG_FORMAT = (
@@ -149,7 +148,6 @@ def convert_single_scale(
             image_data = read_image_data_v2(
                 image_path, 0, -1, 0, -1, read_z_start, read_z_end, ratio.x, ratio.y, ratio.z
             )
-        image_data = convert_image_data(image_data)
 
         channel_progress = z_range_progress.get_or_add("channel")
         for channel_index, channel_data in channel_progress.bind(list(enumerate(image_data))):
@@ -210,14 +208,6 @@ def load_work_progress(resume: bool, output_directory: Path) -> ChainedProgress:
 
 def calc_ranges(start: int, end: int, step: int) -> list[DimensionRange]:
     return [DimensionRange(start, min(end, start + step)) for start in range(start, end, step)]
-
-
-def convert_image_data(data: ndarray) -> ndarray:
-    if data.dtype.kind != "f":
-        return data
-    data_max, data_min = np.max(data), np.min(data)
-    normalized_data = (data - data_min) / (data_max - data_min)
-    return normalized_data.astype(np.float32)
 
 
 @contextmanager

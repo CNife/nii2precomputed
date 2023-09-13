@@ -8,9 +8,8 @@ import numpy as np
 import tensorstore as ts
 from numpy import ndarray
 from util import dbg
-from zimg import Dimension, VoxelSizeUnit, ZImg, ZImgInfo, col4
-
 from vendor.neuroglancer_scripts_dyadic_pyramid import fill_scales_for_dyadic_pyramid
+from zimg import Dimension, VoxelSizeUnit, ZImg, ZImgInfo, col4
 
 Resolution = namedtuple("Resolution", ["x", "y", "z"])
 ImageSize = namedtuple("ImageSize", ["x", "y", "z"])
@@ -20,10 +19,7 @@ PathLike: TypeAlias = Path | str
 
 
 def convert_nii_to_precomputed(
-    out_folder: Path | str,
-    image_path: Path | str,
-    url_path: str,
-    resolution: Resolution,
+    out_folder: Path | str, image_path: Path | str, url_path: str, resolution: Resolution
 ) -> None:
     out_folder, image_path = Path(out_folder), Path(image_path)
     out_folder.mkdir(exist_ok=True)
@@ -36,20 +32,11 @@ def convert_nii_to_precomputed(
     data_type = np.dtype(data_type_str)
 
     # 构造多分辨率缩放信息
-    full_resolution_info = build_full_resolution_info(
-        data_type_str, resolution, image_size
-    )
+    full_resolution_info = build_full_resolution_info(data_type_str, resolution, image_size)
     dbg(full_resolution_info, "full resolution info")
 
     # 构造并写入neuroglancer的base.json
-    build_and_write_base_json(
-        image_info.channelColors,
-        resolution,
-        image_size,
-        data_type,
-        url_path,
-        out_folder,
-    )
+    build_and_write_base_json(image_info.channelColors, resolution, image_size, data_type, url_path, out_folder)
 
     # 用tensorstore转换图像为neuroglancer的precomputed格式文件
     convert_image(image_path, full_resolution_info, out_folder, resolution)
@@ -57,17 +44,13 @@ def convert_nii_to_precomputed(
 
 def read_image_info(image_path: PathLike | list[PathLike]) -> ZImgInfo:
     if isinstance(image_path, list):
-        image_infos = ZImg.readImgInfos(
-            [str(path) for path in image_path], Dimension.Z, False
-        )
+        image_infos = ZImg.readImgInfos([str(path) for path in image_path], Dimension.Z, False)
     else:
         image_infos = ZImg.readImgInfos(str(image_path))
     return image_infos[0]
 
 
-def build_full_resolution_info(
-    data_type_str: str, resolution: Resolution, image_size: ImageSize
-) -> dict[str, Any]:
+def build_full_resolution_info(data_type_str: str, resolution: Resolution, image_size: ImageSize) -> dict[str, Any]:
     info = {
         "type": "image",
         "data_type": data_type_str,
@@ -126,9 +109,7 @@ def build_and_write_base_json(
             "blend": "additive",
             "shaderControls": {
                 "color": f"#{channel_color.r:02x}{channel_color.g:02x}{channel_color.b:02x}",
-                "normalized": {
-                    "range": image_data_range,
-                },
+                "normalized": {"range": image_data_range},
             },
         }
         base_dict["layers"].append(channel_layer)
@@ -139,10 +120,7 @@ def build_and_write_base_json(
 
 
 def convert_image(
-    image_path: Path | list[str],
-    full_resolution_info: dict[str, Any],
-    out_folder: Path,
-    resolution: Resolution,
+    image_path: Path | list[str], full_resolution_info: dict[str, Any], out_folder: Path, resolution: Resolution
 ) -> None:
     multiscale_metadata = {
         "data_type": full_resolution_info["data_type"],
@@ -166,19 +144,12 @@ def convert_image(
                 zRatio=z_ratio,
             )
         else:
-            zimg_reader = ZImg(
-                filename=str(image_path), xRatio=x_ratio, yRatio=y_ratio, zRatio=z_ratio
-            )
+            zimg_reader = ZImg(filename=str(image_path), xRatio=x_ratio, yRatio=y_ratio, zRatio=z_ratio)
         image_data: ndarray = zimg_reader.data[0][0]
         image_data = convert_image_data(image_data)
 
         scale_metadata = convert_to_tensorstore_scale_metadata(scale_info)
-        output_store = open_tensorstore(
-            f"channel_0",
-            out_folder,
-            scale_metadata,
-            multiscale_metadata,
-        )
+        output_store = open_tensorstore(f"channel_0", out_folder, scale_metadata, multiscale_metadata)
         output_store[ts.d["channel"][0]] = image_data.transpose()
 
 
@@ -191,17 +162,11 @@ def convert_to_tensorstore_scale_metadata(scale: dict[str, Any]) -> dict[str, An
 
 
 def open_tensorstore(
-    channel_name: str,
-    out_folder: Path,
-    scale_metadata: dict[str, Any],
-    multiscale_metadata: dict[str, Any],
+    channel_name: str, out_folder: Path, scale_metadata: dict[str, Any], multiscale_metadata: dict[str, Any]
 ) -> ts.TensorStore:
     spec = {
         "driver": "neuroglancer_precomputed",
-        "kvstore": {
-            "driver": "file",
-            "path": str(out_folder),
-        },
+        "kvstore": {"driver": "file", "path": str(out_folder)},
         "path": channel_name,
         "scale_metadata": scale_metadata,
         "multiscale_metadata": multiscale_metadata,
@@ -223,20 +188,12 @@ def convert_color(origin_color: col4) -> Color:
     return Color(origin_color.r, origin_color.g, origin_color.b, origin_color.a)
 
 
-unit_scales = {
-    VoxelSizeUnit.nm: 1,
-    VoxelSizeUnit.um: 1000,
-    VoxelSizeUnit.mm: 1000000,
-}
+unit_scales = {VoxelSizeUnit.nm: 1, VoxelSizeUnit.um: 1000, VoxelSizeUnit.mm: 1000000}
 
 
 def get_resolution(image_info: ZImgInfo) -> Resolution:
     scale = unit_scales.get(image_info.voxelSizeUnit, 1000)
-    return Resolution(
-        x=image_info.voxelSizeX * scale,
-        y=image_info.voxelSizeY * scale,
-        z=image_info.voxelSizeZ * scale,
-    )
+    return Resolution(x=image_info.voxelSizeX * scale, y=image_info.voxelSizeY * scale, z=image_info.voxelSizeZ * scale)
 
 
 def get_image_size(image_info: ZImgInfo) -> ImageSize:
